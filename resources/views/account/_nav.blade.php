@@ -15,4 +15,11 @@
             {{ $tab['label'] }}
         </a>
     @endforeach
+
+    <form method="POST" action="{{ route('logout') }}" class="whitespace-nowrap pb-1 ml-auto">
+        @csrf
+        <button type="submit" class="pb-2 border-b-2 border-transparent text-graphite hover:text-ink hover:border-ink/30 transition-colors">
+            Sign out
+        </button>
+    </form>
 </nav>
