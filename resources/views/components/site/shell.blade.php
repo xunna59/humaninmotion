@@ -17,5 +17,4 @@
 
 <livewire:cart-drawer />
 
-@livewireScripts
 @stack('scripts')

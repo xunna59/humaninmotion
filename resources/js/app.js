@@ -1,8 +1,5 @@
-import { Livewire } from '../../vendor/livewire/livewire/dist/livewire.esm.js';
-import Alpine from 'alpinejs';
+import { Livewire, Alpine } from '../../vendor/livewire/livewire/dist/livewire.esm.js';
 import collapse from '@alpinejs/collapse';
-
-window.Livewire = Livewire;
 
 Alpine.store('app', {
     mobileOpen: false,
@@ -90,7 +87,7 @@ Alpine.data('pdp', () => ({
     adding: false,
     sizeChartOpen: false,
 
-    init({ variants, images }) {
+    init({ variants = [], images = [] } = {}) {
         this.variants = variants;
         this.images = images;
         this.activeImage = images[0] || null;
@@ -191,4 +188,4 @@ Alpine.data('checkoutTotals', ({ subtotal, discount, shipping }) => ({
 }));
 
 Alpine.plugin(collapse);
-Alpine.start();
+Livewire.start();

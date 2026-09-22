@@ -27,8 +27,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Bebas+Neue&display=swap" rel="stylesheet">
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
+@vite(['resources/css/app.css', 'resources/js/app.js'])
+@livewireStyles
+@livewireScriptConfig
 </head>
 <body class="min-h-screen flex flex-col bg-bone text-ink">
 
@@ -37,7 +38,6 @@
 </x-site.shell>
 
 @stack('modals')
-@livewireScripts
 @stack('scripts')
 </body>
 </html>
