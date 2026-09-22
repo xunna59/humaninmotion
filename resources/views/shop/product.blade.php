@@ -38,7 +38,7 @@
         'price' => (float) $v->price,
         'compare_price' => $v->compare_price,
     ])) !!}, images: {!! json_encode($product->images->pluck('path')) !!} })">
-    <script>window.PDP_ADD_URL = {{ json_encode(route('bag.add')) }};</script>
+    <script>window.PDP_ADD_URL = @js(route('bag.add'));</script>
         <div class="container-site grid lg:grid-cols-2 gap-10 lg:gap-16 py-8 lg:py-12">
             {{-- Gallery --}}
             <div class="flex flex-col-reverse md:flex-row gap-4">
