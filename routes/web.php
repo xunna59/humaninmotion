@@ -42,10 +42,12 @@ Route::post('/bag/remove', [BagController::class, 'remove'])->name('bag.remove')
 Route::post('/bag/coupon', [BagController::class, 'applyCoupon'])->name('bag.coupon');
 Route::delete('/bag/coupon', [BagController::class, 'removeCoupon'])->name('bag.coupon.remove');
 
-// ── Checkout ───────────────────────────────────────────────────────
-Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout.index');
-Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place');
-Route::get('/checkout/confirmation/{order}', [CheckoutController::class, 'confirmation'])->name('checkout.confirmation');
+// ── Checkout (requires sign-in) ────────────────────────────────────
+Route::middleware('auth')->prefix('checkout')->name('checkout.')->group(function () {
+    Route::get('/', [CheckoutController::class, 'show'])->name('index');
+    Route::post('/', [CheckoutController::class, 'place'])->name('place');
+    Route::get('/confirmation/{order}', [CheckoutController::class, 'confirmation'])->name('confirmation');
+});
 
 Route::get('/journal', [JournalController::class, 'index'])->name('journal.index');
 Route::get('/journal/{slug}', [JournalController::class, 'show'])->name('journal.show');

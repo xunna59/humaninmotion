@@ -68,6 +68,7 @@ class AuthController extends Controller
 
         event(new Registered($user));
         Auth::login($user);
+        app(CartService::class)->attachUser(Auth::user());
 
         return redirect(route('account.index'));
     }
