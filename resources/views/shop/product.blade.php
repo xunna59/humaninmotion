@@ -29,7 +29,7 @@
 @section('content')
     <x-shop.breadcrumbs :crumbs="[['label' => 'Shop', 'url' => route('shop')], ['label' => $product->category?->name ?? 'Shop', 'url' => $product->category ? route('category.show', $product->category->slug) : route('shop')]]" :current="$product->name" />
 
-    <div x-data="pdp()" x-init="init({ variants: {!! json_encode($product->variants->map(fn ($v) => [
+    <div x-data="pdp()" x-init='init({ variants: {!! json_encode($product->variants->map(fn ($v) => [
         'id' => $v->id,
         'colour' => $v->colour,
         'size' => $v->size,
@@ -37,7 +37,7 @@
         'sku' => $v->sku,
         'price' => (float) $v->price,
         'compare_price' => $v->compare_price,
-    ])) !!}, images: {!! json_encode($product->images->pluck('path')) !!} })">
+    ]), JSON_HEX_APOS | JSON_HEX_TAG) !!}, images: {!! json_encode($product->images->pluck('path'), JSON_HEX_APOS | JSON_HEX_TAG) !!} })'>
     <script>window.PDP_ADD_URL = @js(route('bag.add'));</script>
         <div class="container-site grid lg:grid-cols-2 gap-10 lg:gap-16 py-8 lg:py-12">
             {{-- Gallery --}}
