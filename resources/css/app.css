@@ -1,11 +1,223 @@
-@import 'tailwindcss';
-
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+@import "tailwindcss";
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-display: "Bebas Neue", "Archivo", ui-sans-serif, system-ui, sans-serif;
+
+    /* Premium neutral palette */
+    --color-ink: #0a0a0a;
+    --color-softblack: #141413;
+    --color-charcoal: #1f1e1c;
+    --color-stone: #4a4844;
+    --color-graphite: #6f6c66;
+    --color-warmgray: #ecebe8;
+    --color-shell: #f6f5f2;
+    --color-linen: #ddd9d3;
+    --color-fog: #b8b4ac;
+    --color-mist: #8a867e;
+    --color-bone: #faf9f7;
+
+    /* Refined accent used sparingly */
+    --color-brass: #a8812f;
+    --color-brass-dark: #8a6a24;
+    --color-brass-light: #c9a95c;
+
+    /* Signal states */
+    --color-sale: #a3322b;
+    --color-ok: #2f6b4f;
+    --color-warn: #a06a14;
+
+    --tracking-campaign: 0.12em;
+    --tracking-label: 0.14em;
+
+    --radius-site: 0;
+}
+
+@layer base {
+    html {
+        @apply antialiased;
+        color-scheme: light;
+    }
+
+    body {
+        @apply bg-bone text-ink font-sans text-[15px] leading-relaxed;
+    }
+
+    ::selection {
+        @apply bg-ink text-bone;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        @apply text-ink;
+    }
+
+    img {
+        @apply select-none;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-brass);
+        outline-offset: 2px;
+    }
+
+    input, select, textarea, button {
+        font: inherit;
+    }
+}
+
+@layer components {
+    .container-site {
+        @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10;
+    }
+
+    .display-campaign {
+        font-family: var(--font-display);
+        @apply font-normal uppercase leading-[0.9] tracking-tight;
+    }
+
+    .eyebrow {
+        @apply text-[11px] uppercase font-semibold tracking-[--tracking-label];
+    }
+
+    .label-tracked {
+        @apply text-[11px] uppercase font-semibold tracking-[--tracking-label];
+    }
+
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 uppercase tracking-[--tracking-label] text-[12px] font-semibold px-6 py-3.5 transition-colors duration-200 select-none cursor-pointer border;
+    }
+
+    .btn-primary {
+        @apply btn bg-ink text-bone border-ink hover:bg-charcoal;
+    }
+
+    .btn-bone {
+        @apply btn bg-shell text-ink border-shell hover:bg-white;
+    }
+
+    .btn-outline {
+        @apply btn bg-transparent text-ink border-ink/80 hover:bg-ink hover:text-bone;
+    }
+
+    .btn-outline-bone {
+        @apply btn bg-transparent text-bone border-bone/70 hover:bg-bone hover:text-ink;
+    }
+
+    .btn-ghost {
+        @apply btn bg-transparent text-ink border-transparent hover:bg-ink/5;
+    }
+
+    .btn-brass {
+        @apply btn bg-brass text-bone border-brass hover:bg-brass-dark;
+    }
+
+    .btn-disabled {
+        @apply btn opacity-40 pointer-events-none;
+    }
+
+    .btn-sm {
+        @apply px-4 py-2.5 text-[11px];
+    }
+
+    .btn-lg {
+        @apply px-9 py-4 text-[13px];
+    }
+
+    .btn-block {
+        @apply w-full;
+    }
+
+    .btn-loading {
+        @apply relative text-transparent pointer-events-none;
+    }
+
+    .label {
+        @apply block text-[11px] uppercase tracking-[--tracking-label] font-semibold text-ink mb-2;
+    }
+
+    .input {
+        @apply w-full bg-white border border-ink/25 px-3.5 py-3 text-sm text-ink placeholder:text-graphite/60 transition-colors focus:border-ink focus:outline-none disabled:bg-warmgray disabled:text-graphite;
+    }
+
+    .input-error {
+        @apply border-sale;
+    }
+
+    .error-text {
+        @apply mt-1.5 block text-xs text-sale;
+    }
+
+    .select {
+        @apply input appearance-none pr-9 bg-no-repeat bg-[right_0.75rem_center];
+    }
+
+    .checkbox {
+        @apply h-4 w-4 shrink-0 border border-ink/40 checked:bg-ink accent-ink;
+    }
+
+    .badge {
+        @apply inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-[--tracking-label];
+    }
+
+    .badge-dark { @apply badge bg-ink text-bone; }
+    .badge-bone { @apply badge bg-bone text-ink; }
+    .badge-sale { @apply badge bg-sale text-white; }
+    .badge-brass { @apply badge bg-brass text-bone; }
+    .badge-outline { @apply badge border border-ink/30 text-ink; }
+
+    .card {
+        @apply bg-white border border-ink/10;
+    }
+
+    .divider {
+        @apply h-px w-full bg-ink/10;
+    }
+
+    .overlay-ink {
+        background: linear-gradient(to top, rgba(10,10,10,0.72) 0%, rgba(10,10,10,0.18) 45%, rgba(10,10,10,0.05) 100%);
+    }
+
+    .overlay-ink-center {
+        background: rgba(10,10,10,0.5);
+    }
+
+    .link-underline {
+        @apply underline underline-offset-4 decoration-ink/40 hover:decoration-ink transition-[text-decoration-color];
+    }
+
+    .table-base th {
+        @apply text-left text-[11px] uppercase tracking-[--tracking-label] font-semibold text-graphite px-4 py-3 border-b border-ink/15 bg-shell;
+    }
+
+    .table-base td {
+        @apply px-4 py-3 border-b border-ink/10 align-middle;
+    }
+
+    .skeleton {
+        @apply relative overflow-hidden bg-warmgray;
+    }
+
+    .skeleton::after {
+        content: "";
+        @apply absolute inset-0 -translate-x-full;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+        animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+        100% { transform: translateX(100%); }
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .prose-editorial p { @apply mb-4 text-ink/80; }
+    .prose-editorial h2 { @apply display-campaign text-3xl mt-8 mb-3; }
+    .prose-editorial h3 { @apply text-lg font-bold mt-6 mb-2; }
+    .prose-editorial ul { @apply mb-4 list-disc pl-5 text-ink/80; }
+    .prose-editorial a { @apply link-underline; }
+}
+
+@utility font-display {
+    font-family: var(--font-display);
 }
