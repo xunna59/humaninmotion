@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -76,14 +77,14 @@ class Order extends Model
         return $this->hasMany(OrderAddress::class);
     }
 
-    public function shippingAddress(): ?OrderAddress
+    public function shippingAddress(): HasOne
     {
-        return $this->addresses->firstWhere('type', 'shipping');
+        return $this->hasOne(OrderAddress::class)->where('type', 'shipping');
     }
 
-    public function billingAddress(): ?OrderAddress
+    public function billingAddress(): HasOne
     {
-        return $this->addresses->firstWhere('type', 'billing');
+        return $this->hasOne(OrderAddress::class)->where('type', 'billing');
     }
 
     public function payments(): HasMany

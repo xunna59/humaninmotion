@@ -9,6 +9,7 @@ use App\Services\Pricing\PricingService;
 use App\Services\Promotions\PromotionService;
 use App\Services\SettingsService;
 use App\Services\Shipping\ShippingService;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        Paginator::defaultView('pagination.custom');
+        Paginator::defaultSimpleView('pagination.custom');
     }
 }

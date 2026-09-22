@@ -8,6 +8,14 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProductQuery
 {
+    public const SORTS = [
+        'featured' => 'Featured',
+        'newest' => 'Newest',
+        'best_selling' => 'Best selling',
+        'price_low_high' => 'Price: Low to High',
+        'price_high_low' => 'Price: High to Low',
+    ];
+
     protected Builder $query;
 
     protected array $filters = [];
@@ -64,7 +72,7 @@ class ProductQuery
             $query->where('is_new', true);
         }
         if ($this->filters['sale'] ?? false) {
-            $query->whereNotNull('compare_price')->whereColumn('compare_price', '>', 'price');
+            $query->whereNotNull('products.compare_price')->whereColumn('products.compare_price', '>', 'products.price');
         }
         if ($this->filters['bestseller'] ?? false) {
             $query->where('is_bestseller', true);
@@ -191,7 +199,7 @@ class ProductQuery
 
     protected static function facetSizes(Builder $query): array
     {
-        return $query->active()->whereHas('activeVariants', fn ($v) => $v->where('stock', '>', 0))
+        return $query->clone()->active()->whereHas('activeVariants', fn ($v) => $v->where('stock', '>', 0))
             ->leftJoin('product_variants', function ($join) {
                 $join->on('product_variants.product_id', '=', 'products.id')
                     ->where('product_variants.is_active', true);
@@ -206,7 +214,7 @@ class ProductQuery
 
     public static function availableColours(Builder $query): array
     {
-        return $query->active()
+        return $query->clone()->active()
             ->leftJoin('product_variants', function ($join) {
                 $join->on('product_variants.product_id', '=', 'products.id')
                     ->where('product_variants.is_active', true);

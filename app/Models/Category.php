@@ -58,4 +58,16 @@ class Category extends Model
     {
         return $query->where('show_in_nav', true);
     }
+
+    public function sizeChart(): ?SizeChart
+    {
+        $type = in_array($this->slug, [
+            't-shirts', 'shirts', 'hoodies', 'sweatshirts', 'knitwear', 'outerwear', 'jackets', 'vests', 'polo-shirts',
+        ], true) ? 'tops' : 'bottoms';
+
+        return SizeChart::query()
+            ->where('is_active', true)
+            ->where('category_type', $type)
+            ->first() ?? SizeChart::query()->where('is_active', true)->first();
+    }
 }

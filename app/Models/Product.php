@@ -37,6 +37,7 @@ class Product extends Model
         'fit',
         'material',
         'style',
+        'views',
         'care_instructions',
         'tags',
         'video_url',

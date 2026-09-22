@@ -7,7 +7,7 @@ use App\Models\Collection;
 
 class NavigationService
 {
-    public function navCategories(): \Illuminate\Database\Eloquent\Collection
+    public function navCategories(): array
     {
         return Category::query()
             ->where('show_in_nav', true)

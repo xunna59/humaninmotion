@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+[x-cloak] { display: none !important; }
+
 @theme {
     --font-sans: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-display: "Bebas Neue", "Archivo", ui-sans-serif, system-ui, sans-serif;
@@ -70,11 +72,6 @@
         @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10;
     }
 
-    .display-campaign {
-        font-family: var(--font-display);
-        @apply font-normal uppercase leading-[0.9] tracking-tight;
-    }
-
     .eyebrow {
         @apply text-[11px] uppercase font-semibold tracking-[--tracking-label];
     }
@@ -135,10 +132,6 @@
         @apply block text-[11px] uppercase tracking-[--tracking-label] font-semibold text-ink mb-2;
     }
 
-    .input {
-        @apply w-full bg-white border border-ink/25 px-3.5 py-3 text-sm text-ink placeholder:text-graphite/60 transition-colors focus:border-ink focus:outline-none disabled:bg-warmgray disabled:text-graphite;
-    }
-
     .input-error {
         @apply border-sale;
     }
@@ -153,10 +146,6 @@
 
     .checkbox {
         @apply h-4 w-4 shrink-0 border border-ink/40 checked:bg-ink accent-ink;
-    }
-
-    .badge {
-        @apply inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-[--tracking-label];
     }
 
     .badge-dark { @apply badge bg-ink text-bone; }
@@ -179,10 +168,6 @@
 
     .overlay-ink-center {
         background: rgba(10,10,10,0.5);
-    }
-
-    .link-underline {
-        @apply underline underline-offset-4 decoration-ink/40 hover:decoration-ink transition-[text-decoration-color];
     }
 
     .table-base th {
@@ -220,4 +205,25 @@
 
 @utility font-display {
     font-family: var(--font-display);
+}
+
+@utility btn {
+    @apply inline-flex items-center justify-center gap-2 uppercase tracking-[--tracking-label] text-[12px] font-semibold px-6 py-3.5 transition-colors duration-200 select-none cursor-pointer border;
+}
+
+@utility input {
+    @apply w-full bg-white border border-ink/25 px-3.5 py-3 text-sm text-ink placeholder:text-graphite/60 transition-colors focus:border-ink focus:outline-none disabled:bg-warmgray disabled:text-graphite;
+}
+
+@utility badge {
+    @apply inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-[--tracking-label];
+}
+
+@utility display-campaign {
+    font-family: var(--font-display);
+    @apply font-normal uppercase leading-[0.9] tracking-tight;
+}
+
+@utility link-underline {
+    @apply underline underline-offset-4 decoration-ink/40 hover:decoration-ink transition-[text-decoration-color];
 }
