@@ -215,6 +215,18 @@
     @apply w-full bg-white border border-ink/25 px-3.5 py-3 text-sm text-ink placeholder:text-graphite/60 transition-colors focus:border-ink focus:outline-none disabled:bg-warmgray disabled:text-graphite;
 }
 
+@utility field {
+    @apply input;
+}
+
+@utility field-sm {
+    @apply px-2.5 py-2 text-[12px];
+}
+
+@utility field-invalid {
+    @apply border-sale;
+}
+
 @utility badge {
     @apply inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase tracking-[--tracking-label];
 }
