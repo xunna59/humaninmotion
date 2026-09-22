@@ -76,3 +76,4 @@ Route::middleware('auth')->prefix('account')->name('account.')->group(function (
 Route::get('/unknown', fn () => abort(404))->where('slug', '.*');
 
 require __DIR__ . '/auth.php';
+require __DIR__ . '/admin.php';
