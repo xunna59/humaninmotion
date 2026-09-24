@@ -8,8 +8,12 @@
     @vite(['resources/css/app.css'])
 </head>
 <body class="min-h-screen bg-shell text-ink">
-    <div class="flex min-h-screen">
-        <aside class="w-60 shrink-0 bg-ink text-bone flex flex-col fixed inset-y-0 left-0 z-40">
+    <div class="min-h-screen">
+        <div id="admin-overlay" onclick="window.adminNav.close()"
+             class="hidden fixed inset-0 z-30 bg-ink/50 lg:hidden"></div>
+
+        <aside id="admin-sidebar"
+               class="w-60 max-w-[80vw] shrink-0 bg-ink text-bone flex flex-col fixed inset-y-0 left-0 z-40 transition-transform duration-200 -translate-x-full lg:translate-x-0">
             <div class="px-6 py-6 border-b border-white/10">
                 <a href="{{ route('admin.index') }}" class="font-display text-2xl tracking-[0.06em] text-bone">HIM</a>
                 <p class="label-tracked text-fog/70 mt-1">Admin Console</p>
@@ -34,7 +38,7 @@
                     $currentPrefix = explode('.', request()->route()?->getName() ?? '')[1] ?? '';
                 @endphp
                 @foreach ($items as $prefix => [$name, $label])
-                    <a href="{{ route($name) }}"
+                    <a href="{{ route($name) }}" onclick="window.adminNav.close()"
                        class="flex items-center justify-between px-3 py-2 rounded-sm transition-colors {{ $currentPrefix === $prefix ? 'bg-bone/10 text-bone' : 'text-fog/80 hover:text-bone hover:bg-white/5' }}">
                         {{ $label }}
                     </a>
@@ -56,9 +60,27 @@
             </div>
         </aside>
 
-        <main class="flex-1 ml-60 px-8 py-8 max-w-[1400px]">
+        <header class="lg:hidden sticky top-0 z-30 bg-ink text-bone flex items-center justify-between px-4 py-3">
+            <a href="{{ route('admin.index') }}" class="font-display text-xl tracking-[0.06em]">HIM</a>
+            <button onclick="window.adminNav.open()" class="label-tracked text-fog hover:text-bone px-3 py-2 border border-white/20">Menu</button>
+        </header>
+
+        <main class="lg:ml-60 px-4 lg:px-8 py-6 lg:py-8 max-w-[1400px]">
             @yield('content')
         </main>
     </div>
+
+    <script>
+        window.adminNav = {
+            open() {
+                document.getElementById('admin-sidebar').classList.remove('-translate-x-full');
+                document.getElementById('admin-overlay').classList.remove('hidden');
+            },
+            close() {
+                document.getElementById('admin-sidebar').classList.add('-translate-x-full');
+                document.getElementById('admin-overlay').classList.add('hidden');
+            }
+        };
+    </script>
 </body>
 </html>

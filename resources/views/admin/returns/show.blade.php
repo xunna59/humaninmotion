@@ -12,7 +12,7 @@
     </header>
 
     <div class="grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-6">
+        <div class="lg:col-span-2 space-y-6 min-w-0">
             <div class="card p-5">
                 <h2 class="font-semibold uppercase tracking-[--tracking-label] text-sm mb-4">Items</h2>
                 <table class="table-base w-full">

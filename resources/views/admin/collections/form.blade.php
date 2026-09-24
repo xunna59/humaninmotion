@@ -15,7 +15,7 @@
         @endif
 
         <div class="grid lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-2 space-y-6">
+            <div class="lg:col-span-2 space-y-6 min-w-0">
                 <div class="card p-5 space-y-4">
                     <h2 class="font-semibold uppercase tracking-[--tracking-label] text-sm">Details</h2>
                     <div class="grid sm:grid-cols-2 gap-4">

@@ -41,7 +41,9 @@ class AuthController extends Controller
         app(CartService::class)->attachUser(Auth::user());
         app(WishlistService::class)->mergeGuestIntoUser(Auth::user());
 
-        return redirect()->intended(route('account.index'));
+        return redirect()->intended(Auth::user()->canAccessAdmin()
+            ? route('admin.dashboard')
+            : route('account.index'));
     }
 
     public function showRegister(): View

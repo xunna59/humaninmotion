@@ -3,7 +3,7 @@
 @section('content')
     @include('admin.partials.flash')
 
-    <header class="mb-6 flex items-center justify-between">
+    <header class="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div>
             <h1 class="display-campaign text-4xl">{{ $customer->name }}</h1>
             <p class="text-graphite mt-1">
@@ -63,7 +63,7 @@
             @endif
         </div>
 
-        <div class="lg:col-span-2 card overflow-hidden">
+        <div class="lg:col-span-2 min-w-0 card overflow-x-auto">
             <div class="px-5 py-4 border-b border-ink/10">
                 <h2 class="font-semibold uppercase tracking-[--tracking-label] text-sm">Orders</h2>
             </div>

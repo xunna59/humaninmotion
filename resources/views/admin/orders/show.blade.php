@@ -3,7 +3,7 @@
 @section('content')
     @include('admin.partials.flash')
 
-    <header class="mb-6 flex items-center justify-between">
+    <header class="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div>
             <h1 class="display-campaign text-4xl">Order {{ $order->order_number }}</h1>
             <p class="text-graphite mt-1">
@@ -20,8 +20,8 @@
     </header>
 
     <div class="grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-6">
-            <div class="card overflow-hidden">
+        <div class="lg:col-span-2 space-y-6 min-w-0">
+            <div class="card overflow-x-auto">
                 <div class="px-5 py-4 border-b border-ink/10">
                     <h2 class="font-semibold uppercase tracking-[--tracking-label] text-sm">Items</h2>
                 </div>
@@ -103,7 +103,7 @@
             </div>
 
             @if ($order->payments->isNotEmpty())
-                <div class="card p-5">
+                <div class="card p-5 overflow-x-auto">
                     <h2 class="font-semibold uppercase tracking-[--tracking-label] text-sm mb-4">Payments</h2>
                     <table class="table-base w-full">
                         <thead>
@@ -131,7 +131,7 @@
             @endif
         </div>
 
-        <div class="space-y-6">
+        <div class="space-y-6 min-w-0">
             <form method="POST" action="{{ route('admin.orders.update', $order) }}" class="card p-5 space-y-4">
                 @csrf
                 @method('PUT')

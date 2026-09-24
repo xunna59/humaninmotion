@@ -3,7 +3,7 @@
 @section('content')
     @include('admin.partials.flash')
 
-    <header class="mb-6 flex items-center justify-between">
+    <header class="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <div>
             <h1 class="display-campaign text-4xl">Homepage</h1>
             <p class="text-graphite mt-1">{{ $sections->count() }} sections — display order top to bottom</p>
