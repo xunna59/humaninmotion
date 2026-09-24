@@ -196,6 +196,14 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+    .overflow-x-auto,
+    .overflow-x-scroll,
+    .no-scrollbar,
+    [data-rail] {
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .prose-editorial p { @apply mb-4 text-ink/80; }
     .prose-editorial h2 { @apply display-campaign text-3xl mt-8 mb-3; }
     .prose-editorial h3 { @apply text-lg font-bold mt-6 mb-2; }
