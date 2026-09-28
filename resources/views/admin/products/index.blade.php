@@ -92,7 +92,7 @@
                         </td>
                         <td class="text-right whitespace-nowrap">
                             <div class="inline-flex gap-2 items-center">
-                                <a href="{{ route('product.show', $product) }}" target="_blank" class="text-xs underline underline-offset-4 hover:text-brass">View</a>
+                                <a href="{{ route('product.show', $product->slug) }}" target="_blank" class="text-xs underline underline-offset-4 hover:text-brass">View</a>
                                 <a href="{{ route('admin.products.edit', $product) }}" class="text-xs underline underline-offset-4 hover:text-brass">Edit</a>
                                 <form method="POST" action="{{ route('admin.products.duplicate', $product) }}">
                                     @csrf

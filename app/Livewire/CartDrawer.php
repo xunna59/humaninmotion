@@ -12,7 +12,7 @@ class CartDrawer extends Component
 {
     protected $listeners = ['cart-updated' => '$refresh'];
 
-    public function getCartProperty(): \App\Services\Cart\CartService
+    public function getCartProperty(): CartService
     {
         return app(CartService::class);
     }
@@ -54,7 +54,7 @@ class CartDrawer extends Component
         $subtotal = $cart?->subtotal() ?? 0;
 
         $shippingService = app(ShippingService::class);
-        $shipping = $cart ? $shippingService->rateFor('uk_standard', $cart) : 0;
+        $shipping = $cart ? $shippingService->rateFor($shippingService->defaultCode(), $cart) : 0;
         $promotion = app(PromotionService::class);
         $coupon = $cart?->coupon_code;
         $couponFree = $coupon ? $promotion->couponFor($coupon) : null;

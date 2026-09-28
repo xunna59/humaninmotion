@@ -11,7 +11,9 @@
          x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
          class="fixed inset-y-0 left-0 z-50 w-[85vw] max-w-[380px] bg-bone overflow-y-auto no-scrollbar lg:hidden">
         <div class="flex items-center justify-between h-16 px-5 border-b border-ink/10">
-            <span class="font-display text-[17px] tracking-[0.14em]">HUMAN IN MOTION</span>
+            <x-site.logo class="max-h-8 max-w-[140px]">
+                <span class="font-display text-[17px] tracking-[0.14em]">HUMAN IN MOTION</span>
+            </x-site.logo>
             <button class="p-1.5 text-ink/70" @click="open = false" aria-label="Close menu">
                 <x-icon name="close" size="22" />
             </button>

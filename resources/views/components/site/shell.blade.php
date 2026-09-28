@@ -15,6 +15,8 @@
 
 <x-site.footer />
 
+<x-site.cookie-consent />
+
 <livewire:cart-drawer />
 
 @stack('scripts')

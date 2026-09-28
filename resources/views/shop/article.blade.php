@@ -24,7 +24,7 @@
         @endif
 
         <figure class="my-8 overflow-hidden bg-shell">
-            <img src="{{ $article->cover_image ?: '/placeholder/journal-' . $article->slug . '.svg' }}"
+            <img src="{{ $article->coverImageUrl() ?: '/placeholder/journal-' . $article->slug . '.svg' }}"
                  alt="{{ $article->title }}" class="w-full aspect-[16/9] object-cover" loading="lazy">
         </figure>
 
@@ -32,9 +32,9 @@
             {!! $article->content !!}
         </div>
 
-        @if (is_array($article->gallery) && count($article->gallery) > 0)
+        @if (count($article->galleryUrls()) > 0)
             <div class="grid grid-cols-2 gap-4 my-8">
-                @foreach ($article->gallery as $image)
+                @foreach ($article->galleryUrls() as $image)
                     <img src="{{ $image }}" alt="" loading="lazy" class="w-full aspect-[4/3] object-cover">
                 @endforeach
             </div>
@@ -49,7 +49,7 @@
                     @foreach ($related as $rel)
                         <a href="{{ route('journal.show', $rel->slug) }}" class="group block">
                             <div class="aspect-[4/3] overflow-hidden bg-bone">
-                                <img src="{{ $rel->cover_image ?: '/placeholder/journal-' . $rel->slug . '.svg' }}" alt="{{ $rel->title }}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                                <img src="{{ $rel->coverImageUrl() ?: '/placeholder/journal-' . $rel->slug . '.svg' }}" alt="{{ $rel->title }}" loading="lazy" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                             </div>
                             <p class="display-campaign text-xl mt-3 group-hover:underline underline-offset-4 decoration-brass">{{ $rel->title }}</p>
                         </a>

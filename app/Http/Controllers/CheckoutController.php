@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Country;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Services\Cart\CartService;
@@ -11,6 +12,7 @@ use App\Services\Payments\PaymentManager;
 use App\Services\Shipping\ShippingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,6 +40,8 @@ class CheckoutController extends Controller
             'cart' => $cart,
             'totals' => app(CheckoutService::class)->totals($cart),
             'shippingMethods' => app(ShippingService::class)->methods(),
+            'defaultShippingCode' => app(ShippingService::class)->defaultCode(),
+            'countries' => Country::query()->orderBy('name')->get(),
             'defaultShipping' => $defaultShipping,
             'operatingGateway' => $stripeOperating ? 'stripe' : 'mock',
             'gatewayLabel' => $stripeOperating
@@ -66,8 +70,8 @@ class CheckoutController extends Controller
             'shipping_city' => ['required', 'string', 'max:255'],
             'shipping_county' => ['nullable', 'string', 'max:255'],
             'shipping_postcode' => ['required', 'string', 'max:20'],
-            'shipping_country' => ['required', 'string', 'max:100'],
-            'shipping_phone' => ['nullable', 'string', 'max:32'],
+            'shipping_country' => ['required', 'string', 'max:100', 'exists:countries,name'],
+            'shipping_phone' => ['required', 'string', 'max:32'],
             'billing_same' => ['nullable', 'boolean'],
             'billing_name' => ['nullable', 'required_if:billing_same,false', 'string', 'max:255'],
             'billing_line_one' => ['nullable', 'required_if:billing_same,false', 'string', 'max:255'],
@@ -75,9 +79,9 @@ class CheckoutController extends Controller
             'billing_city' => ['nullable', 'required_if:billing_same,false', 'string', 'max:255'],
             'billing_county' => ['nullable', 'string', 'max:255'],
             'billing_postcode' => ['nullable', 'required_if:billing_same,false', 'string', 'max:20'],
-            'billing_country' => ['nullable', 'required_if:billing_same,false', 'string', 'max:100'],
-            'billing_phone' => ['nullable', 'string', 'max:32'],
-            'shipping_method' => ['required', 'string', 'in:uk_standard,uk_express,europe,intl'],
+            'billing_country' => ['nullable', 'required_if:billing_same,false', 'string', 'max:100', 'exists:countries,name'],
+            'billing_phone' => ['nullable', 'required_if:billing_same,false', 'string', 'max:32'],
+            'shipping_method' => ['required', 'string', Rule::in(app(ShippingService::class)->codes())],
             'customer_note' => ['nullable', 'string', 'max:2000'],
             'payment_method' => ['required', 'string', 'in:mock,stripe'],
         ]);
@@ -96,7 +100,12 @@ class CheckoutController extends Controller
 
             try {
                 $totals = $service->totals($cart, $checkoutData->shippingMethod);
-                $order = $service->createPendingOrder($cart, $checkoutData, $userId);
+
+                // Idempotency: a double submit reuses the existing unresolved
+                // pending order + its Stripe session (same idempotency key)
+                // instead of creating duplicates.
+                $order = $service->pendingOrderForCart($cart, $totals['total'])
+                    ?? $service->createPendingOrder($cart, $checkoutData, $userId);
 
                 $session = $gateway->createCheckoutSession(
                     amount: $totals['total'],
@@ -105,6 +114,7 @@ class CheckoutController extends Controller
                     customerEmail: $checkoutData->email,
                     successUrl: route('checkout.return', $order),
                     cancelUrl: route('checkout.cancel', $order),
+                    idempotencyKey: 'checkout-'.$order->order_number,
                 );
 
                 $service->attachCheckoutSession($order, $session['id']);
@@ -220,8 +230,14 @@ class CheckoutController extends Controller
 
         $object = $event->data->object;
 
-        if ($event->type === 'checkout.session.completed') {
-            $this->finalizeSession((string) ($object->id ?? ''));
+        try {
+            match ($event->type) {
+                'checkout.session.completed' => $this->finalizeSession((string) ($object->id ?? '')),
+                'checkout.session.expired' => $this->cancelPendingSession((string) ($object->id ?? '')),
+                default => null,
+            };
+        } catch (RuntimeException $e) {
+            report($e);
         }
 
         // charge.refunded carries the intent under ->payment_intent
@@ -241,13 +257,19 @@ class CheckoutController extends Controller
 
         $order = $payment->order;
 
-        match ($event->type) {
-            'payment_intent.succeeded' => $this->markSucceeded($payment, $order),
-            'payment_intent.payment_failed' => $this->markFailed($payment, $order),
-            'payment_intent.canceled' => $this->markCancelled($payment, $order),
-            'charge.refunded' => $this->markRefunded($payment, $order, (float) ($object->amount_refunded / 100)),
-            default => null,
-        };
+        try {
+            match ($event->type) {
+                'payment_intent.succeeded' => $this->markSucceeded($payment, $order),
+                'payment_intent.payment_failed' => $this->markFailed($payment, $order),
+                'payment_intent.canceled' => $this->markCancelled($payment, $order),
+                'charge.refunded' => $this->markRefunded($payment, $order, (float) ($object->amount_refunded / 100)),
+                default => null,
+            };
+        } catch (RuntimeException $e) {
+            // Log and acknowledge rather than 500, otherwise Stripe retries
+            // indefinitely against a permanent problem.
+            report($e);
+        }
 
         return response('ok');
     }
@@ -271,6 +293,18 @@ class CheckoutController extends Controller
         if ($result['status'] === 'paid') {
             app(CheckoutService::class)->finalizeStripeOrder($order, $result);
         }
+    }
+
+    protected function cancelPendingSession(string $sessionId): void
+    {
+        if (! $sessionId) {
+            return;
+        }
+
+        Order::query()
+            ->where('metadata->checkout_session_id', $sessionId)
+            ->where('status', Order::STATUS_PENDING)
+            ->update(['status' => Order::STATUS_CANCELLED]);
     }
 
     protected function markSucceeded(Payment $payment, ?Order $order): void

@@ -27,7 +27,8 @@
             subtotal: {{ $totals['subtotal'] }},
             discount: {{ $totals['discount'] }},
             shipping: {{ $totals['shipping'] }},
-        })">
+        })"
+              @submit="submitted = true">
             @csrf
 
             <div class="grid lg:grid-cols-[1fr_380px] gap-10">
@@ -76,11 +77,15 @@
                             </div>
                             <div>
                                 <label class="label" for="shipping_country">COUNTRY</label>
-                                <input id="shipping_country" name="shipping_country" value="{{ old('shipping_country', $defaultShipping->country ?? 'United Kingdom') }}" required class="field">
+                                <select id="shipping_country" name="shipping_country" required class="field">
+                                    @foreach ($countries as $country)
+                                        <option value="{{ $country->name }}" @selected(old('shipping_country', $defaultShipping->country ?? 'United Kingdom') === $country->name)>{{ $country->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="label" for="shipping_phone">PHONE (OPTIONAL)</label>
-                                <input id="shipping_phone" name="shipping_phone" type="tel" value="{{ old('shipping_phone', $defaultShipping->phone ?? '') }}" class="field">
+                                <label class="label" for="shipping_phone">PHONE</label>
+                                <input id="shipping_phone" name="shipping_phone" type="tel" value="{{ old('shipping_phone', $defaultShipping->phone ?? '') }}" required class="field">
                             </div>
                         </div>
                     </section>
@@ -123,11 +128,15 @@
                             </div>
                             <div>
                                 <label class="label" for="billing_country">COUNTRY</label>
-                                <input id="billing_country" name="billing_country" value="{{ old('billing_country') }}" class="field">
+                                <select id="billing_country" name="billing_country" class="field">
+                                    @foreach ($countries as $country)
+                                        <option value="{{ $country->name }}" @selected(old('billing_country', 'United Kingdom') === $country->name)>{{ $country->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="label" for="billing_phone">PHONE (OPTIONAL)</label>
-                                <input id="billing_phone" name="billing_phone" type="tel" value="{{ old('billing_phone') }}" class="field">
+                                <label class="label" for="billing_phone">PHONE</label>
+                                <input id="billing_phone" name="billing_phone" type="tel" value="{{ old('billing_phone') }}" required class="field">
                             </div>
                         </div>
                     </section>
@@ -143,7 +152,7 @@
                                 @endphp
                                 <label class="group flex items-center gap-4 border p-4 cursor-pointer transition-colors has-checked:border-ink border-ink/15">
                                     <input type="radio" name="shipping_method" value="{{ $method['code'] }}"
-                                           @checked($method['code'] === 'uk_standard')
+                                           @checked($method['code'] === $defaultShippingCode)
                                            data-shipping-price="{{ $price }}"
                                            @change="setShipping({{ $price }}, '{{ $method['code'] }}')"
                                            class="peer sr-only">
@@ -249,8 +258,10 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary btn-block justify-center">
-                            PLACE ORDER
+                        <button type="submit" class="btn btn-primary btn-block justify-center" :disabled="submitted"
+                                :class="{ 'opacity-60 cursor-not-allowed': submitted }">
+                            <span x-show="!submitted">PLACE ORDER</span>
+                            <span x-show="submitted" x-cloak>PROCESSING…</span>
                         </button>
                         <p class="text-xs text-graphite text-center flex items-center justify-center gap-1.5">
                             <x-icon name="lock" size="14" /> Secure checkout

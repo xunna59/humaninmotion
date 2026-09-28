@@ -23,7 +23,11 @@
 
         <div class="flex flex-col justify-center p-6 sm:p-10 lg:p-16">
             <div class="lg:hidden mb-8">
-                <a href="{{ route('home') }}" class="display-campaign text-2xl">HUMAN IN MOTION</a>
+                <a href="{{ route('home') }}" class="inline-block">
+                    <x-site.logo class="max-h-8 max-w-[160px]">
+                        <span class="display-campaign text-2xl">HUMAN IN MOTION</span>
+                    </x-site.logo>
+                </a>
             </div>
             <div class="w-full max-w-sm mx-auto">
                 @yield('content')

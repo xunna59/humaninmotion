@@ -9,7 +9,7 @@
             <p class="text-graphite mt-1">
                 <a href="{{ route('admin.products.index') }}" class="underline underline-offset-4">Products</a>
                 @if ($product->exists)
-                    · <a href="{{ route('product.show', $product) }}" target="_blank" class="underline underline-offset-4">View on store</a>
+                    · <a href="{{ route('product.show', $product->slug) }}" target="_blank" class="underline underline-offset-4">View on store</a>
                 @endif
             </p>
         </div>

@@ -44,7 +44,12 @@
                 </form>
                 <p data-newsletter-message class="mt-2 text-xs text-bone/50"></p>
             </div>
-            <p class="text-[11px] text-bone/40 tracking-wide">© {{ date('Y') }} Human In Motion Ltd. All rights reserved.</p>
+            <div class="text-[11px] text-bone/40 tracking-wide flex items-center gap-6">
+                <p>© {{ date('Y') }} Human In Motion Ltd. All rights reserved.</p>
+                @if ((bool) $site->get('consent_enabled', true))
+                    <button type="button" onclick="window.dispatchEvent(new Event('consent:open'))" class="underline underline-offset-2 hover:text-bone transition-colors">Cookie preferences</button>
+                @endif
+            </div>
         </div>
     </div>
 </footer>

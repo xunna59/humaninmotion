@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Setting;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class SettingsSeeder extends Seeder
 {
@@ -27,6 +26,10 @@ class SettingsSeeder extends Seeder
             ], 'group' => 'general'],
             ['key' => 'seo_default_title', 'value' => 'Human In Motion | Premium British Menswear', 'group' => 'seo'],
             ['key' => 'seo_default_description', 'value' => 'Premium modern British menswear. Designed for those who move differently.', 'group' => 'seo'],
+            ['key' => 'logo', 'value' => null, 'group' => 'general'],
+            ['key' => 'consent_enabled', 'value' => true, 'group' => 'general'],
+            ['key' => 'consent_text', 'value' => 'We use cookies to enhance your browsing experience, analyse site traffic and serve relevant content. By accepting you consent to our use of cookies. See our Cookie Policy for more details.', 'group' => 'general'],
+            ['key' => 'consent_policy_slug', 'value' => 'cookie-policy', 'group' => 'general'],
         ];
 
         foreach ($settings as $setting) {

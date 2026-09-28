@@ -19,7 +19,7 @@
                     <article>
                         <a href="{{ route('journal.show', $article->slug) }}" class="block group">
                             <div class="aspect-[4/3] overflow-hidden bg-shell">
-                                <img src="{{ $article->cover_image ?: '/placeholder/journal-' . $article->slug . '.svg' }}"
+                                <img src="{{ $article->coverImageUrl() ?: '/placeholder/journal-' . $article->slug . '.svg' }}"
                                      alt="{{ $article->title }}" loading="lazy" decoding="async"
                                      class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
                             </div>

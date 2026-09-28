@@ -53,30 +53,35 @@ class StripeGateway implements PaymentGateway
         ?string $customerEmail,
         string $successUrl,
         string $cancelUrl,
+        ?string $idempotencyKey = null,
     ): array {
-        try {
-            $session = $this->client()->checkout->sessions->create([
-                'mode' => 'payment',
-                'client_reference_id' => $reference,
-                'customer_email' => $customerEmail,
-                'line_items' => [[
-                    'quantity' => 1,
-                    'price_data' => [
-                        'currency' => strtolower($currency),
-                        'unit_amount' => $this->toMinorUnits($amount, $currency),
-                        'product_data' => [
-                            'name' => 'Human In Motion order '.$reference,
-                        ],
+        $params = [
+            'mode' => 'payment',
+            'client_reference_id' => $reference,
+            'customer_email' => $customerEmail,
+            'line_items' => [[
+                'quantity' => 1,
+                'price_data' => [
+                    'currency' => strtolower($currency),
+                    'unit_amount' => $this->toMinorUnits($amount, $currency),
+                    'product_data' => [
+                        'name' => 'Human In Motion order '.$reference,
                     ],
-                ]],
-                'success_url' => $successUrl,
-                'cancel_url' => $cancelUrl,
-                'metadata' => [
-                    'integration' => 'humaninmotion-checkout',
-                    'order_reference' => $reference,
                 ],
-                'submit_type' => 'pay',
-            ]);
+            ]],
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+            'metadata' => [
+                'integration' => 'humaninmotion-checkout',
+                'order_reference' => $reference,
+            ],
+            'submit_type' => 'pay',
+        ];
+
+        $options = filled($idempotencyKey) ? ['idempotency_key' => $idempotencyKey] : [];
+
+        try {
+            $session = $this->client()->checkout->sessions->create($params, $options);
         } catch (ApiErrorException $e) {
             throw new RuntimeException('Stripe could not start checkout: '.$e->getMessage());
         }
@@ -200,11 +205,16 @@ class StripeGateway implements PaymentGateway
         ];
     }
 
-    public function refund(string $transactionId, float $amount, string $currency): array
+    /**
+     * Refund a captured payment. Stripe refunds always target a PaymentIntent,
+     * while transaction_id may hold a Checkout Session id (cs_...) for hosted
+     * sessions — so prefer the explicit PaymentIntent (pi_...) when available.
+     */
+    public function refund(string $transactionId, float $amount, string $currency, ?string $intentId = null): array
     {
         try {
             $refund = $this->client()->refunds->create([
-                'payment_intent' => $transactionId,
+                'payment_intent' => $intentId ?? $transactionId,
                 'amount' => $this->toMinorUnits($amount, $currency),
             ]);
         } catch (ApiErrorException $e) {

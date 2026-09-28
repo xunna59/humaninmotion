@@ -7,8 +7,10 @@
             <x-icon name="menu" size="22" />
         </button>
 
-        <a href="{{ route('home') }}" class="shrink-0 font-display text-[20px] lg:text-[22px] tracking-[0.16em] pt-1" aria-label="Human In Motion">
-            HUMAN <span class="text-brass">IN</span> MOTION
+        <a href="{{ route('home') }}" class="shrink-0 flex items-center" aria-label="Human In Motion">
+            <x-site.logo>
+                <span class="font-display text-[20px] lg:text-[22px] tracking-[0.16em] pt-1">HUMAN <span class="text-brass">IN</span> MOTION</span>
+            </x-site.logo>
         </a>
 
         <nav class="hidden lg:flex items-center gap-6 xl:gap-8 mx-auto" aria-label="Primary">

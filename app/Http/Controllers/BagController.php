@@ -8,7 +8,9 @@ use App\Services\Cart\CartService;
 use App\Services\Pricing\PricingService;
 use App\Services\Promotions\PromotionService;
 use App\Services\Shipping\ShippingService;
+use App\Support\Money;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class BagController extends Controller
@@ -34,7 +36,7 @@ class BagController extends Controller
             'item_id' => $item->id,
             'quantity' => $item->quantity,
             'count' => app(CartService::class)->count(),
-            'subtotal' => \App\Support\Money::formatFloat(app(CartService::class)->subtotal()),
+            'subtotal' => Money::formatFloat(app(CartService::class)->subtotal()),
         ]);
     }
 
@@ -47,7 +49,7 @@ class BagController extends Controller
         return response()->json([
             'ok' => true,
             'count' => app(CartService::class)->count(),
-            'subtotal' => \App\Support\Money::formatFloat(app(CartService::class)->subtotal()),
+            'subtotal' => Money::formatFloat(app(CartService::class)->subtotal()),
         ]);
     }
 
@@ -59,11 +61,11 @@ class BagController extends Controller
         return response()->json([
             'ok' => true,
             'count' => app(CartService::class)->count(),
-            'subtotal' => \App\Support\Money::formatFloat(app(CartService::class)->subtotal()),
+            'subtotal' => Money::formatFloat(app(CartService::class)->subtotal()),
         ]);
     }
 
-    public function applyCoupon(Request $request): \Illuminate\Http\RedirectResponse
+    public function applyCoupon(Request $request): RedirectResponse
     {
         $request->validate(['code' => ['required', 'string', 'max:50']]);
         $coupon = app(PromotionService::class)->couponFor(trim($request->string('code')));
@@ -87,7 +89,7 @@ class BagController extends Controller
         return back()->with('success', 'Coupon applied.');
     }
 
-    public function removeCoupon(): \Illuminate\Http\RedirectResponse
+    public function removeCoupon(): RedirectResponse
     {
         $cart = app(CartService::class)->current();
         $cart?->update(['coupon_code' => null]);
@@ -109,7 +111,8 @@ class BagController extends Controller
         }
 
         $coupon = $cart->coupon_code;
-        $shipping = app(ShippingService::class)->rateFor('uk_standard', $cart);
+        $shippingService = app(ShippingService::class);
+        $shipping = $shippingService->rateFor($shippingService->defaultCode(), $cart);
         $couponFree = app(PromotionService::class)->couponFor($coupon ?? '');
         $shipping = $couponFree && $couponFree->type === 'free_shipping'
             ? 0

@@ -15,7 +15,11 @@
         <aside id="admin-sidebar"
                class="w-60 max-w-[80vw] shrink-0 bg-ink text-bone flex flex-col fixed inset-y-0 left-0 z-40 transition-transform duration-200 -translate-x-full lg:translate-x-0">
             <div class="px-6 py-6 border-b border-white/10">
-                <a href="{{ route('admin.index') }}" class="font-display text-2xl tracking-[0.06em] text-bone">HIM</a>
+                <a href="{{ route('admin.index') }}" class="flex items-center">
+                    <x-site.logo class="max-h-6 lg:max-h-7 max-w-[110px]">
+                        <span class="font-display text-2xl tracking-[0.06em] text-bone">HIM</span>
+                    </x-site.logo>
+                </a>
                 <p class="label-tracked text-fog/70 mt-1">Admin Console</p>
             </div>
 
@@ -28,11 +32,14 @@
                         'collections' => ['admin.collections.index', 'Collections'],
                         'promotions' => ['admin.promotions.index', 'Promotions'],
                         'coupons' => ['admin.coupons.index', 'Coupons'],
+                        'shipping' => ['admin.shipping.index', 'Shipping'],
                         'orders' => ['admin.orders.index', 'Orders'],
                         'payments' => ['admin.payments.index', 'Payments'],
                         'customers' => ['admin.customers.index', 'Customers'],
                         'reviews' => ['admin.reviews.index', 'Reviews'],
                         'returns' => ['admin.returns.index', 'Returns'],
+                        'journal' => ['admin.journal.index', 'Journal'],
+                        'pages' => ['admin.pages.index', 'Pages'],
                         'home' => ['admin.home.index', 'Homepage'],
                         'settings' => ['admin.settings.index', 'Settings'],
                     ];
@@ -62,7 +69,11 @@
         </aside>
 
         <header class="lg:hidden sticky top-0 z-30 bg-ink text-bone flex items-center justify-between px-4 py-3">
-            <a href="{{ route('admin.index') }}" class="font-display text-xl tracking-[0.06em]">HIM</a>
+            <a href="{{ route('admin.index') }}" class="flex items-center">
+                <x-site.logo class="max-h-6 max-w-[90px]">
+                    <span class="font-display text-xl tracking-[0.06em]">HIM</span>
+                </x-site.logo>
+            </a>
             <button onclick="window.adminNav.open()" class="label-tracked text-fog hover:text-bone px-3 py-2 border border-white/20">Menu</button>
         </header>
 

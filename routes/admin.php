@@ -6,13 +6,16 @@ use App\Http\Controllers\Admin\CouponController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HomeSectionController;
+use App\Http\Controllers\Admin\JournalController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\PageController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReturnController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\ShippingMethodController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'admin'])
@@ -71,6 +74,14 @@ Route::middleware(['auth', 'admin'])
         Route::put('/coupons/{coupon}', [CouponController::class, 'update'])->name('coupons.update');
         Route::delete('/coupons/{coupon}', [CouponController::class, 'destroy'])->name('coupons.destroy');
 
+        // Shipping methods
+        Route::get('/shipping', [ShippingMethodController::class, 'index'])->name('shipping.index');
+        Route::get('/shipping/create', [ShippingMethodController::class, 'create'])->name('shipping.create');
+        Route::post('/shipping', [ShippingMethodController::class, 'store'])->name('shipping.store');
+        Route::get('/shipping/{method}/edit', [ShippingMethodController::class, 'edit'])->name('shipping.edit');
+        Route::put('/shipping/{method}', [ShippingMethodController::class, 'update'])->name('shipping.update');
+        Route::delete('/shipping/{method}', [ShippingMethodController::class, 'destroy'])->name('shipping.destroy');
+
         // Promotions
         Route::get('/promotions', [PromotionController::class, 'index'])->name('promotions.index');
         Route::get('/promotions/create', [PromotionController::class, 'create'])->name('promotions.create');
@@ -97,6 +108,22 @@ Route::middleware(['auth', 'admin'])
         Route::put('/home/{section}', [HomeSectionController::class, 'update'])->name('home.update');
         Route::delete('/home/{section}', [HomeSectionController::class, 'destroy'])->name('home.destroy');
         Route::post('/home/reorder', [HomeSectionController::class, 'reorder'])->name('home.reorder');
+
+        // Pages
+        Route::get('/pages', [PageController::class, 'index'])->name('pages.index');
+        Route::get('/pages/create', [PageController::class, 'create'])->name('pages.create');
+        Route::post('/pages', [PageController::class, 'store'])->name('pages.store');
+        Route::get('/pages/{page}/edit', [PageController::class, 'edit'])->name('pages.edit');
+        Route::put('/pages/{page}', [PageController::class, 'update'])->name('pages.update');
+        Route::delete('/pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
+
+        // Journal
+        Route::get('/journal', [JournalController::class, 'index'])->name('journal.index');
+        Route::get('/journal/create', [JournalController::class, 'create'])->name('journal.create');
+        Route::post('/journal', [JournalController::class, 'store'])->name('journal.store');
+        Route::get('/journal/{article}/edit', [JournalController::class, 'edit'])->name('journal.edit');
+        Route::put('/journal/{article}', [JournalController::class, 'update'])->name('journal.update');
+        Route::delete('/journal/{article}', [JournalController::class, 'destroy'])->name('journal.destroy');
 
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');

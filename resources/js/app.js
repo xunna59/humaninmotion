@@ -176,6 +176,7 @@ Alpine.data('checkoutTotals', ({ subtotal, discount, shipping = 0 }) => ({
     subtotal,
     discount,
     shipping,
+    submitted: false,
     setShipping(price) {
         this.shipping = price;
     },

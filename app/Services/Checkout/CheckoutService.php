@@ -25,8 +25,10 @@ class CheckoutService
         protected PaymentManager $payments,
     ) {}
 
-    public function totals(Cart $cart, string $shippingMethod = 'uk_standard'): array
+    public function totals(Cart $cart, ?string $shippingMethod = null): array
     {
+        $shippingMethod ??= $this->shipping->defaultCode();
+
         $couponCode = $cart->coupon_code;
         $discount = $this->promotions->calculateDiscount($cart, $couponCode);
         $couponFreeShipping = $discount['code']
@@ -68,20 +70,46 @@ class CheckoutService
     }
 
     /**
+     * Find an unresolved pending order started for this cart, so a double
+     * submit (or refresh after clicking "Place order") reuses the same order
+     * and Stripe session instead of stacking duplicates. Only matches when
+     * the totals are identical, so a bag edit still starts a fresh order.
+     */
+    public function pendingOrderForCart(Cart $cart, float $total): ?Order
+    {
+        return Order::query()
+            ->where('status', Order::STATUS_PENDING)
+            ->where('payment_status', Order::PAYMENT_UNPAID)
+            ->where('metadata->cart_id', $cart->id)
+            ->where('created_at', '>=', now()->subHours(2))
+            ->orderByDesc('created_at')
+            ->get()
+            ->first(fn (Order $order) => round((float) $order->total, 2) === round($total, 2));
+    }
+
+    /**
      * Confirm a paid hosted-gateway order: deduct stock, record the payment,
-     * mark the order paid and send the confirmation. Safe to call again
-     * (idempotent) so a webhook and the customer's return to the success URL
-     * can race without double-charging or double-emailing.
+     * mark the order paid and send the confirmation. Safe to call concurrently
+     * (idempotent): the order row is locked first, so a webhook retry racing
+     * the customer's return to the success URL can only finalise once and can
+     * never double-deduct stock, double-record the payment or double-email.
      *
-     * @throws RuntimeException when stock is insufficient
+     * @throws RuntimeException when stock is insufficient or the paid amount
+     *                          does not match the order total
      */
     public function finalizeStripeOrder(Order $order, array $paymentResult, ?Cart $cart = null): Order
     {
-        if ($order->isPaid()) {
-            return $order->fresh();
-        }
-
         return DB::transaction(function () use ($order, $paymentResult, $cart) {
+            // Lock the order row so concurrent finalise calls serialise here.
+            /** @var Order $order */
+            $order = Order::query()->whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            // Authoritative guard, now inside the transaction and under lock.
+            if ($order->isPaid() || $order->status === Order::STATUS_CANCELLED) {
+                return $order->fresh();
+            }
+
+            $this->assertAmountMatches($order, $paymentResult);
             $this->deductStock($order);
 
             $order->payments()->create([
@@ -116,6 +144,18 @@ class CheckoutService
         });
     }
 
+    protected function assertAmountMatches(Order $order, array $paymentResult): void
+    {
+        $expected = round((float) $order->total, 2);
+        $given = round((float) ($paymentResult['amount'] ?? 0), 2);
+
+        if ($expected <= 0 || abs($expected - $given) > 0.005) {
+            throw new RuntimeException(
+                'Confirmed payment amount does not match the order total. Please contact support.'
+            );
+        }
+    }
+
     /**
      * @return Order the persisted order metadata wrapper
      */
@@ -138,7 +178,10 @@ class CheckoutService
             'shipping_method' => $data->shippingMethod,
             'customer_note' => $data->customerNote,
             'placed_at' => now(),
-            'metadata' => ['checkout_data' => $data->toArrayForLog()],
+            'metadata' => [
+                'checkout_data' => $data->toArrayForLog(),
+                'cart_id' => $cart->id,
+            ],
         ]);
 
         foreach ($cart->items as $item) {
