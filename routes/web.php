@@ -42,9 +42,10 @@ Route::post('/bag/remove', [BagController::class, 'remove'])->name('bag.remove')
 Route::post('/bag/coupon', [BagController::class, 'applyCoupon'])->name('bag.coupon');
 Route::delete('/bag/coupon', [BagController::class, 'removeCoupon'])->name('bag.coupon.remove');
 
-// ── Checkout (requires sign-in) ────────────────────────────────────
-Route::middleware('auth')->prefix('checkout')->name('checkout.')->group(function () {
+// ── Checkout (guests welcome — sign-in optional) ──────────────────
+Route::prefix('checkout')->name('checkout.')->group(function () {
     Route::get('/', [CheckoutController::class, 'show'])->name('index');
+    Route::post('/payment-intent', [CheckoutController::class, 'stripeIntent'])->name('payment-intent');
     Route::post('/', [CheckoutController::class, 'place'])->name('place');
     Route::get('/confirmation/{order}', [CheckoutController::class, 'confirmation'])->name('confirmation');
 });

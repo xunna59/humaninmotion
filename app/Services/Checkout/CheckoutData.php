@@ -15,8 +15,7 @@ class CheckoutData
         public ?string $customerNote = null,
         public ?string $paymentMethod = 'mock',
         public array $paymentPayload = [],
-    ) {
-    }
+    ) {}
 
     public static function fromRequest(array $input, ?Address $defaultAddress = null): self
     {
@@ -61,7 +60,9 @@ class CheckoutData
                 : null,
             customerNote: $input['customer_note'] ?? null,
             paymentMethod: $input['payment_method'] ?? 'mock',
-            paymentPayload: $input['payment_payload'] ?? [],
+            paymentPayload: array_filter([
+                'intent_id' => $input['payment_intent_id'] ?? null,
+            ]),
         );
     }
 

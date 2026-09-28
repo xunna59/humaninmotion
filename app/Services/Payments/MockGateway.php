@@ -21,7 +21,7 @@ class MockGateway implements PaymentGateway
     {
         return [
             'success' => true,
-            'transaction_id' => 'MOCK-' . strtoupper(Str::random(12)),
+            'transaction_id' => 'MOCK-'.strtoupper(Str::random(12)),
             'status' => 'succeeded',
             'amount' => $amount,
             'currency' => $currency,

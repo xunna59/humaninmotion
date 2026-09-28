@@ -9,6 +9,7 @@ class PaymentManager
 {
     protected array $gateways = [
         'mock' => MockGateway::class,
+        'stripe' => StripeGateway::class,
     ];
 
     public function gateway(?string $name = null): PaymentGateway

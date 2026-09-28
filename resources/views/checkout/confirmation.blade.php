@@ -31,6 +31,17 @@
         <div class="mt-10 flex flex-wrap justify-center gap-3">
             @auth
                 <a href="{{ route('account.orders.show', $order) }}" class="btn btn-primary">TRACK YOUR ORDER</a>
+            @else
+                <div class="w-full max-w-md mx-auto border border-ink/10 bg-white p-6 text-left">
+                    <p class="label mb-2">SIGN IN TO TRACK THIS ORDER</p>
+                    <p class="text-sm text-graphite leading-relaxed">
+                        Create an account or sign in to follow delivery updates and manage returns.
+                    </p>
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <a href="{{ route('register') }}" class="btn btn-primary btn-sm">CREATE ACCOUNT</a>
+                        <a href="{{ route('login') }}" class="btn btn-outline btn-sm">SIGN IN</a>
+                    </div>
+                </div>
             @endauth
             <a href="{{ route('new-in') }}" class="btn btn-outline">SHOP NEW IN</a>
         </div>

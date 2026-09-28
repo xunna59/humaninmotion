@@ -8,9 +8,12 @@ use App\Services\Checkout\CheckoutData;
 use App\Services\Checkout\CheckoutService;
 use App\Services\Payments\PaymentManager;
 use App\Services\Shipping\ShippingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use RuntimeException;
 
 class CheckoutController extends Controller
 {
@@ -22,21 +25,69 @@ class CheckoutController extends Controller
             return redirect()->route('bag');
         }
 
-        $totals = app(CheckoutService::class)->totals($cart);
         $user = $request->user();
+        $paymentManager = app(PaymentManager::class);
+        $gateway = $paymentManager->gateway();
+        $stripe = ($gateway->providerName() === 'stripe') ? $gateway : null;
+        $stripeOperating = $stripe && $stripe->isConfigured();
 
         $defaultShipping = $user?->addresses()->where('type', 'shipping')->where('is_default', true)->first()
             ?? $user?->addresses()->where('type', 'shipping')->first();
 
         return view('checkout.index', [
             'cart' => $cart,
-            'totals' => $totals,
+            'totals' => app(CheckoutService::class)->totals($cart),
             'shippingMethods' => app(ShippingService::class)->methods(),
             'defaultShipping' => $defaultShipping,
-            'gatewayLabel' => app(PaymentManager::class)->gateway()->providerName() === 'mock'
-                ? 'Payment is simulated in this demo. No real card data is taken.'
+            'operatingGateway' => $stripeOperating ? 'stripe' : 'mock',
+            'stripeConfigured' => $stripeOperating,
+            'stripePublishableKey' => $stripeOperating ? $stripe->publishableKey() : null,
+            'gatewayLabel' => $stripeOperating
+                ? null
+                : 'Payment is simulated in this demo. No real card data is taken.',
+            'stripeNotice' => $stripe && ! $stripe->isConfigured()
+                ? 'Stripe is not configured yet — add STRIPE keys to your .env to take live card payments. Orders will use the demo gateway.'
                 : null,
             'title' => 'Checkout | Human In Motion',
+        ]);
+    }
+
+    /**
+     * Create (or refresh) the Stripe PaymentIntent for the cart total
+     * including the selected shipping method. Called from the checkout page.
+     */
+    public function stripeIntent(Request $request): JsonResponse
+    {
+        $cart = app(CartService::class)->current();
+
+        if (! $cart || $cart->items->isEmpty()) {
+            throw ValidationException::withMessages(['checkout' => 'Your bag is empty.']);
+        }
+
+        $data = $request->validate([
+            'shipping_method' => ['required', 'string', 'in:uk_standard,uk_express,europe,intl'],
+        ]);
+
+        $gateway = app(PaymentManager::class)->gateway('stripe');
+
+        if (! $gateway->isConfigured()) {
+            return response()->json([
+                'error' => 'Stripe is not configured. Please add STRIPE_SECRET_KEY to your .env.',
+            ], 422);
+        }
+
+        $totals = app(CheckoutService::class)->totals($cart, $data['shipping_method']);
+        $intent = $gateway->createIntent($totals['total'], $totals['currency'], [
+            'email' => $request->input('email') ?: null,
+            'customer_email' => $request->input('email') ?: null,
+        ]);
+
+        return response()->json([
+            'client_secret' => $intent['client_secret'],
+            'intent_id' => $intent['id'],
+            'amount' => $totals['total'],
+            'currency' => $totals['currency'],
+            'publishable_key' => $gateway->publishableKey(),
         ]);
     }
 
@@ -69,7 +120,8 @@ class CheckoutController extends Controller
             'billing_phone' => ['nullable', 'string', 'max:32'],
             'shipping_method' => ['required', 'string', 'in:uk_standard,uk_express,europe,intl'],
             'customer_note' => ['nullable', 'string', 'max:2000'],
-            'payment_method' => ['required', 'string', 'in:mock'],
+            'payment_method' => ['required', 'string', 'in:mock,stripe'],
+            'payment_intent_id' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
@@ -79,8 +131,8 @@ class CheckoutController extends Controller
                 $checkoutData,
                 $request->user()?->id,
             );
-        } catch (\RuntimeException $e) {
-            return back()->withErrors(['checkout' => $e->getMessage()]);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['checkout' => $e->getMessage()])->onlyInput('email');
         }
 
         return redirect()->route('checkout.confirmation', $order);
