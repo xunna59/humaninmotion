@@ -27,15 +27,8 @@
             subtotal: {{ $totals['subtotal'] }},
             discount: {{ $totals['discount'] }},
             shipping: {{ $totals['shipping'] }},
-            stripe: {{ $operatingGateway === 'stripe' ? 'true' : 'false' }},
-            stripeKey: {{ $operatingGateway === 'stripe' ? "'" . $stripePublishableKey . "'" : 'null' }},
-            intentUrl: {{ $operatingGateway === 'stripe' ? "'" . route('checkout.payment-intent') . "'" : 'null' }},
-            csrf: '{{ csrf_token() }}',
-            initialShippingMethod: 'uk_standard',
-        })"
-              @submit="handleSubmit($event)">
+        })">
             @csrf
-            <input type="hidden" name="payment_intent_id" value="" x-model="intentId">
 
             <div class="grid lg:grid-cols-[1fr_380px] gap-10">
                 <div class="space-y-10">
@@ -181,19 +174,17 @@
 
                         @if ($operatingGateway === 'stripe')
                             <input type="hidden" name="payment_method" value="stripe">
-                            <div x-show="redirectConfirmed" x-cloak
-                                 class="mb-4 border border-ok/40 bg-ok/10 text-ok px-4 py-3 text-sm">
-                                Card authorised — review your order and press PLACE ORDER to confirm.
-                            </div>
                             <div class="border border-ink/15 bg-white p-4">
-                                <div class="flex items-center gap-2 mb-4">
+                                <div class="flex items-center gap-2 mb-3">
                                     <x-icon name="lock" size="16" />
                                     <span class="text-sm font-semibold">Card (Stripe)</span>
                                 </div>
-                                <div id="stripe-payment-element" class="min-h-[120px]"></div>
-                                <p x-show="paymentError" x-cloak class="error-text mt-3" x-text="paymentError"></p>
+                                <p class="text-sm">
+                                    When you press PLACE ORDER you'll be taken to
+                                    <span class="font-semibold">Stripe's secure checkout page</span> to enter your card details.
+                                </p>
                                 <p class="text-[11px] text-graphite mt-3">
-                                    Payments are processed securely by Stripe — your card details never touch this store.
+                                    Your card details are entered on Stripe's site and never touch this store.
                                 </p>
                             </div>
                         @else
@@ -258,9 +249,8 @@
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary btn-block justify-center" :disabled="processing">
-                            <span x-show="!processing">PLACE ORDER</span>
-                            <span x-show="processing" x-cloak>PROCESSING…</span>
+                        <button type="submit" class="btn btn-primary btn-block justify-center">
+                            PLACE ORDER
                         </button>
                         <p class="text-xs text-graphite text-center flex items-center justify-center gap-1.5">
                             <x-icon name="lock" size="14" /> Secure checkout

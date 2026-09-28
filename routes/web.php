@@ -45,8 +45,9 @@ Route::delete('/bag/coupon', [BagController::class, 'removeCoupon'])->name('bag.
 // ── Checkout (guests welcome — sign-in optional) ──────────────────
 Route::prefix('checkout')->name('checkout.')->group(function () {
     Route::get('/', [CheckoutController::class, 'show'])->name('index');
-    Route::post('/payment-intent', [CheckoutController::class, 'stripeIntent'])->name('payment-intent');
     Route::post('/', [CheckoutController::class, 'place'])->name('place');
+    Route::get('/return/{order}', [CheckoutController::class, 'returnFromGateway'])->name('return');
+    Route::get('/cancel/{order}', [CheckoutController::class, 'cancelCheckout'])->name('cancel');
     Route::get('/confirmation/{order}', [CheckoutController::class, 'confirmation'])->name('confirmation');
 });
 
@@ -81,5 +82,5 @@ Route::middleware('auth')->prefix('account')->name('account.')->group(function (
 // ── CDN-ready public assets ────────────────────────────────────────
 Route::get('/unknown', fn () => abort(404))->where('slug', '.*');
 
-require __DIR__ . '/auth.php';
-require __DIR__ . '/admin.php';
+require __DIR__.'/auth.php';
+require __DIR__.'/admin.php';

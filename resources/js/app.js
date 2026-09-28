@@ -172,158 +172,18 @@ Alpine.data('carousel', () => ({
     },
 }));
 
-Alpine.data('checkoutTotals', ({ subtotal, discount, shipping, stripe = false, stripeKey = null, intentUrl = null, csrf = null, initialShippingMethod = 'uk_standard' }) => ({
+Alpine.data('checkoutTotals', ({ subtotal, discount, shipping = 0 }) => ({
     subtotal,
     discount,
     shipping,
-    stripe,                   // Stripe JS instance (once loaded)
-    stripeKey,
-    intentUrl,
-    csrf,
-    initialShippingMethod,
-    elements: null,
-    paymentElement: null,
-    intentId: null,
-    redirectConfirmed: false,
-    paymentError: null,
-    processing: false,
-    gateway: stripe ? 'stripe' : 'mock',
+    setShipping(price) {
+        this.shipping = price;
+    },
     total() {
         return Math.round((this.subtotal - this.discount + this.shipping) * 100) / 100;
     },
     money(value) {
         return '£' + Number(value).toFixed(2);
-    },
-    async init() {
-        if (! this.stripeKey || ! this.intentUrl) {
-            return;
-        }
-
-        try {
-            if (! window.Stripe) {
-                await this.loadStripeJs();
-            }
-            this.stripe = window.Stripe(this.stripeKey);
-
-            // Returned from a 3DS redirect — intent should already be confirmed.
-            const redirectSecret = new URLSearchParams(window.location.search).get('payment_intent_client_secret');
-            if (redirectSecret) {
-                const { paymentIntent } = await this.stripe.retrievePaymentIntent(redirectSecret);
-                if (paymentIntent && ['succeeded', 'processing'].includes(paymentIntent.status)) {
-                    this.intentId = paymentIntent.id;
-                    this.redirectConfirmed = true;
-                    history.replaceState(null, '', window.location.pathname);
-                    return;
-                }
-            }
-
-            await this.mountElement(this.initialShippingMethod);
-        } catch (err) {
-            this.paymentError = err.message || 'Could not start card payment. Please try again.';
-        }
-    },
-    loadStripeJs() {
-        return new Promise((resolve, reject) => {
-            if (window.Stripe) return resolve();
-            const s = document.createElement('script');
-            s.src = 'https://js.stripe.com/v3/';
-            s.onload = resolve;
-            s.onerror = () => reject(new Error('Could not load Stripe.'));
-            document.head.appendChild(s);
-        });
-    },
-    async createSecret(shippingCode) {
-        const res = await fetch(this.intentUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf },
-            body: JSON.stringify({ shipping_method: shippingCode }),
-        });
-        const data = await res.json();
-        if (! res.ok) {
-            throw new Error(data.error || 'Could not create a secure payment. Please try again.');
-        }
-        return data;
-    },
-    async mountElement(shippingCode) {
-        const data = await this.createSecret(shippingCode);
-        this.elementClientSecret = data.client_secret;
-        this.intentId = data.intent_id;
-
-        if (! this.elements) {
-            this.elements = this.stripe.elements({
-                clientSecret: this.elementClientSecret,
-                appearance: {
-                    theme: 'stripe',
-                    variables: { colorText: '#1a1a1a' },
-                },
-            });
-            this.paymentElement = this.elements.create('payment', { layout: 'accordion' });
-            this.paymentElement.mount('#stripe-payment-element');
-        } else {
-            this.elements.update({ clientSecret: this.elementClientSecret });
-            if (typeof this.elements.fetchUpdates === 'function') {
-                await this.elements.fetchUpdates();
-            }
-        }
-    },
-    async setShipping(price, code = 'uk_standard') {
-        this.shipping = price;
-        if (this.gateway === 'stripe' && this.stripe) {
-            try {
-                await this.mountElement(code);
-            } catch (err) {
-                this.paymentError = err.message || 'Could not refresh card payment. Please try again.';
-            }
-        }
-    },
-    async handleSubmit(event) {
-        if (this.gateway !== 'stripe') {
-            return; // plain POST to the demo gateway
-        }
-
-        event.preventDefault();
-        if (this.processing) {
-            return;
-        }
-        this.paymentError = null;
-
-        // Already authorised (returned from a 3DS redirect) — just place the order.
-        if (this.redirectConfirmed && this.intentId) {
-            this.finishSubmit();
-            return;
-        }
-
-        this.processing = true;
-        const { error, paymentIntent } = await this.stripe.confirmPayment({
-            elements: this.elements,
-            redirect: 'if_required',
-            confirmParams: { return_url: window.location.href },
-        });
-
-        if (error) {
-            this.processing = false;
-            this.paymentError = error.message;
-            return;
-        }
-
-        // A redirect (e.g. 3DS) is navigating the browser away.
-        if (! paymentIntent) {
-            this.processing = false;
-            return;
-        }
-
-        this.intentId = paymentIntent.id;
-        this.finishSubmit();
-    },
-    finishSubmit() {
-        const input = this.$el.querySelector('input[name="payment_intent_id"]');
-        if (input && this.intentId) {
-            input.value = this.intentId;
-            this.$el.submit();
-        } else {
-            this.paymentError = 'Payment could not be verified. Please try again.';
-            this.processing = false;
-        }
     },
 }));
 

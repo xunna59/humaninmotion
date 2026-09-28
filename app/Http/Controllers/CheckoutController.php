@@ -9,10 +9,8 @@ use App\Services\Checkout\CheckoutData;
 use App\Services\Checkout\CheckoutService;
 use App\Services\Payments\PaymentManager;
 use App\Services\Shipping\ShippingService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
@@ -42,8 +40,6 @@ class CheckoutController extends Controller
             'shippingMethods' => app(ShippingService::class)->methods(),
             'defaultShipping' => $defaultShipping,
             'operatingGateway' => $stripeOperating ? 'stripe' : 'mock',
-            'stripeConfigured' => $stripeOperating,
-            'stripePublishableKey' => $stripeOperating ? $stripe->publishableKey() : null,
             'gatewayLabel' => $stripeOperating
                 ? null
                 : 'Payment is simulated in this demo. No real card data is taken.',
@@ -51,45 +47,6 @@ class CheckoutController extends Controller
                 ? 'Stripe is not configured yet — add STRIPE keys to your .env to take live card payments. Orders will use the demo gateway.'
                 : null,
             'title' => 'Checkout | Human In Motion',
-        ]);
-    }
-
-    /**
-     * Create (or refresh) the Stripe PaymentIntent for the cart total
-     * including the selected shipping method. Called from the checkout page.
-     */
-    public function stripeIntent(Request $request): JsonResponse
-    {
-        $cart = app(CartService::class)->current();
-
-        if (! $cart || $cart->items->isEmpty()) {
-            throw ValidationException::withMessages(['checkout' => 'Your bag is empty.']);
-        }
-
-        $data = $request->validate([
-            'shipping_method' => ['required', 'string', 'in:uk_standard,uk_express,europe,intl'],
-        ]);
-
-        $gateway = app(PaymentManager::class)->gateway('stripe');
-
-        if (! $gateway->isConfigured()) {
-            return response()->json([
-                'error' => 'Stripe is not configured. Please add STRIPE_SECRET_KEY to your .env.',
-            ], 422);
-        }
-
-        $totals = app(CheckoutService::class)->totals($cart, $data['shipping_method']);
-        $intent = $gateway->createIntent($totals['total'], $totals['currency'], [
-            'email' => $request->input('email') ?: null,
-            'customer_email' => $request->input('email') ?: null,
-        ]);
-
-        return response()->json([
-            'client_secret' => $intent['client_secret'],
-            'intent_id' => $intent['id'],
-            'amount' => $totals['total'],
-            'currency' => $totals['currency'],
-            'publishable_key' => $gateway->publishableKey(),
         ]);
     }
 
@@ -123,21 +80,115 @@ class CheckoutController extends Controller
             'shipping_method' => ['required', 'string', 'in:uk_standard,uk_express,europe,intl'],
             'customer_note' => ['nullable', 'string', 'max:2000'],
             'payment_method' => ['required', 'string', 'in:mock,stripe'],
-            'payment_intent_id' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $checkoutData = CheckoutData::fromRequest($data);
+        $service = app(CheckoutService::class);
+        $userId = $request->user()?->id;
+
+        // Hosted Stripe Checkout: no card details ever touch this server.
+        if ($checkoutData->paymentMethod === 'stripe') {
+            $gateway = app(PaymentManager::class)->gateway('stripe');
+
+            if (! $gateway->isConfigured()) {
+                return back()->withErrors(['checkout' => 'Stripe is not configured yet. Please try again later.']);
+            }
+
+            try {
+                $totals = $service->totals($cart, $checkoutData->shippingMethod);
+                $order = $service->createPendingOrder($cart, $checkoutData, $userId);
+
+                $session = $gateway->createCheckoutSession(
+                    amount: $totals['total'],
+                    currency: $totals['currency'],
+                    reference: $order->order_number,
+                    customerEmail: $checkoutData->email,
+                    successUrl: route('checkout.return', $order),
+                    cancelUrl: route('checkout.cancel', $order),
+                );
+
+                $service->attachCheckoutSession($order, $session['id']);
+            } catch (RuntimeException $e) {
+                return back()->withErrors(['checkout' => $e->getMessage()])->onlyInput('email');
+            }
+
+            return redirect()->away($session['url']);
+        }
+
         try {
-            $checkoutData = CheckoutData::fromRequest($data);
-            $order = app(CheckoutService::class)->place(
-                $cart,
-                $checkoutData,
-                $request->user()?->id,
-            );
+            $order = $service->place($cart, $checkoutData, $userId);
         } catch (RuntimeException $e) {
             return back()->withErrors(['checkout' => $e->getMessage()])->onlyInput('email');
         }
 
         return redirect()->route('checkout.confirmation', $order);
+    }
+
+    /**
+     * Success return from the hosted gateway. Verifies the session is paid,
+     * finalises the order and shows the confirmation. If the payment is still
+     * processing, the webhook will finalise it — this page lets them know.
+     */
+    public function returnFromGateway(Request $request, Order $order): View|RedirectResponse
+    {
+        if ($order->isPaid()) {
+            return redirect()->route('checkout.confirmation', $order);
+        }
+
+        if ($order->status !== Order::STATUS_PENDING) {
+            return redirect()->route('checkout.index');
+        }
+
+        $sessionId = $order->metadata['checkout_session_id'] ?? null;
+
+        if (! $sessionId) {
+            return redirect()->route('checkout.index');
+        }
+
+        try {
+            $result = app(PaymentManager::class)->gateway('stripe')->verifyCheckoutSession($sessionId);
+        } catch (RuntimeException $e) {
+            return redirect()->route('checkout.index')->withErrors(['checkout' => $e->getMessage()]);
+        }
+
+        if ($result['status'] === 'paid') {
+            try {
+                $order = app(CheckoutService::class)->finalizeStripeOrder(
+                    $order,
+                    $result,
+                    app(CartService::class)->current(),
+                );
+            } catch (RuntimeException $e) {
+                $order->refresh();
+                if ($order->status === Order::STATUS_PENDING) {
+                    $order->update(['status' => Order::STATUS_CANCELLED]);
+                }
+
+                return redirect()->route('checkout.index')->withErrors(['checkout' => $e->getMessage()]);
+            }
+
+            return redirect()->route('checkout.confirmation', $order);
+        }
+
+        if (in_array($result['status'], ['open', 'processing'], true)) {
+            return view('checkout.pending', [
+                'order' => $order,
+                'title' => 'Payment processing | Human In Motion',
+            ]);
+        }
+
+        $order->update(['status' => Order::STATUS_CANCELLED]);
+
+        return redirect()->route('checkout.index')->withErrors(['checkout' => 'Payment was not completed. Please try again.']);
+    }
+
+    public function cancelCheckout(Order $order): RedirectResponse
+    {
+        if ($order->status === Order::STATUS_PENDING) {
+            $order->update(['status' => Order::STATUS_CANCELLED]);
+        }
+
+        return redirect()->route('checkout.index')->withErrors(['checkout' => 'You cancelled the payment. Your bag is still saved.']);
     }
 
     public function confirmation(Request $request, Order $order): View
@@ -151,7 +202,7 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Stripe webhook — finalises async payments and records refunds.
+     * Stripe webhook — finalises hosted sessions and reconciles async events.
      *
      * The signature is verified with STRIPE_WEBHOOK_SECRET, so CSRF and the
      * session are intentionally bypassed. Respond 200 quickly to acknowledge.
@@ -168,6 +219,10 @@ class CheckoutController extends Controller
         }
 
         $object = $event->data->object;
+
+        if ($event->type === 'checkout.session.completed') {
+            $this->finalizeSession((string) ($object->id ?? ''));
+        }
 
         // charge.refunded carries the intent under ->payment_intent
         $intentId = $event->type === 'charge.refunded'
@@ -195,6 +250,27 @@ class CheckoutController extends Controller
         };
 
         return response('ok');
+    }
+
+    protected function finalizeSession(string $sessionId): void
+    {
+        if (! $sessionId) {
+            return;
+        }
+
+        $order = Order::query()
+            ->where('metadata->checkout_session_id', $sessionId)
+            ->first();
+
+        if (! $order || $order->isPaid()) {
+            return;
+        }
+
+        $result = app(PaymentManager::class)->gateway('stripe')->verifyCheckoutSession($sessionId);
+
+        if ($result['status'] === 'paid') {
+            app(CheckoutService::class)->finalizeStripeOrder($order, $result);
+        }
     }
 
     protected function markSucceeded(Payment $payment, ?Order $order): void

@@ -94,6 +94,10 @@
             <rect x="2" y="4" width="20" height="16" rx="2"></rect>
             <polyline points="22 6 12 13 2 6"></polyline>
             @break
+        @case('clock')
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+            @break
         @case('instagram')
             <rect x="2" y="2" width="20" height="20" rx="5"></rect>
             <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>

@@ -11,11 +11,12 @@ use Stripe\StripeClient;
 use Stripe\Webhook;
 
 /**
- * Live payment gateway using Stripe PaymentIntent + Payment Element.
+ * Live payment gateway using Stripe's hosted Checkout page.
  *
  * Keys come from .env (STRIPE_SECRET_KEY / STRIPE_PUBLISHABLE_KEY) via
- * config/humaninmotion.php. Card details never touch this server — the
- * client confirms the intent (via Stripe.js) and we only verify + record.
+ * config/humaninmotion.php. Customers are redirected to a Stripe Checkout
+ * session, so card details never touch this server; the session is verified
+ * on return and via the webhook.
  */
 class StripeGateway implements PaymentGateway
 {
@@ -38,9 +39,79 @@ class StripeGateway implements PaymentGateway
         return $this->configured;
     }
 
-    public function publishableKey(): ?string
+    /**
+     * Create a Stripe Checkout (hosted) session. The customer is redirected
+     * to the returned url and pays entirely on Stripe's site, so no card
+     * details ever touch this server.
+     *
+     * @return array{id: string, url: string, amount: int}
+     */
+    public function createCheckoutSession(
+        float $amount,
+        string $currency,
+        string $reference,
+        ?string $customerEmail,
+        string $successUrl,
+        string $cancelUrl,
+    ): array {
+        try {
+            $session = $this->client()->checkout->sessions->create([
+                'mode' => 'payment',
+                'client_reference_id' => $reference,
+                'customer_email' => $customerEmail,
+                'line_items' => [[
+                    'quantity' => 1,
+                    'price_data' => [
+                        'currency' => strtolower($currency),
+                        'unit_amount' => $this->toMinorUnits($amount, $currency),
+                        'product_data' => [
+                            'name' => 'Human In Motion order '.$reference,
+                        ],
+                    ],
+                ]],
+                'success_url' => $successUrl,
+                'cancel_url' => $cancelUrl,
+                'metadata' => [
+                    'integration' => 'humaninmotion-checkout',
+                    'order_reference' => $reference,
+                ],
+                'submit_type' => 'pay',
+            ]);
+        } catch (ApiErrorException $e) {
+            throw new RuntimeException('Stripe could not start checkout: '.$e->getMessage());
+        }
+
+        return [
+            'id' => $session->id,
+            'url' => $session->url,
+            'amount' => $session->amount_total,
+        ];
+    }
+
+    /**
+     * Fetch a Checkout session and confirm it was paid before finalising an
+     * order. Also returns the underlying PaymentIntent id for reconciliation.
+     *
+     * @return array{success: bool, transaction_id: string, intent_id: ?string, status: string, amount: float, currency: string}
+     */
+    public function verifyCheckoutSession(string $sessionId): array
     {
-        return config('humaninmotion.payments.gateways.stripe.publishable_key');
+        try {
+            $session = $this->client()->checkout->sessions->retrieve($sessionId);
+        } catch (ApiErrorException $e) {
+            throw new RuntimeException('Stripe could not verify the checkout: '.$e->getMessage());
+        }
+
+        $status = $session->payment_status ?? 'unpaid';
+
+        return [
+            'success' => $status === 'paid',
+            'transaction_id' => $session->id,
+            'intent_id' => $session->payment_intent ?? null,
+            'status' => $status,
+            'amount' => $session->amount_total / 100,
+            'currency' => strtoupper((string) $session->currency),
+        ];
     }
 
     /**
@@ -76,36 +147,8 @@ class StripeGateway implements PaymentGateway
     }
 
     /**
-     * Create a PaymentIntent for the current cart total. The client mounts
-     * a Payment Element against the returned client_secret.
-     *
-     * @return array{id: string, client_secret: string, amount: int}
-     */
-    public function createIntent(float $amount, string $currency, array $payload = []): array
-    {
-        try {
-            $intent = $this->client()->paymentIntents->create([
-                'amount' => $this->toMinorUnits($amount, $currency),
-                'currency' => strtolower($currency),
-                'payment_method_types' => ['card'],
-                'description' => 'Human In Motion order',
-                'metadata' => array_merge([
-                    'integration' => 'humaninmotion-checkout',
-                ], array_filter($payload)),
-            ]);
-        } catch (ApiErrorException $e) {
-            throw new RuntimeException('Stripe could not create a payment: '.$e->getMessage());
-        }
-
-        return [
-            'id' => $intent->id,
-            'client_secret' => $intent->client_secret,
-            'amount' => $intent->amount,
-        ];
-    }
-
-    /**
      * Verify a client-side confirmed PaymentIntent and record it as paid.
+     * Kept to satisfy the PaymentGateway contract (mock-style charge path).
      *
      * @param  array  $payload  requires 'intent_id'
      */

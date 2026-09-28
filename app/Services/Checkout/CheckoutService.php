@@ -3,12 +3,11 @@
 namespace App\Services\Checkout;
 
 use App\Events\OrderPlaced;
+use App\Models\Address;
 use App\Models\Cart;
-use App\Models\CartItem;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
-use App\Models\OrderAddress;
 use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Services\Payments\PaymentManager;
@@ -24,8 +23,7 @@ class CheckoutService
         protected ShippingService $shipping,
         protected PromotionService $promotions,
         protected PaymentManager $payments,
-    ) {
-    }
+    ) {}
 
     public function totals(Cart $cart, string $shippingMethod = 'uk_standard'): array
     {
@@ -46,6 +44,138 @@ class CheckoutService
             'total' => round($subtotal - $discount['amount'] + $shipping, 2),
             'currency' => 'GBP',
         ];
+    }
+
+    /**
+     * Create an order in a pending state before the customer is redirected
+     * to the hosted gateway. Stock is untouched here — it is only deducted
+     * when the payment is confirmed (see finalizeStripeOrder).
+     */
+    public function createPendingOrder(Cart $cart, CheckoutData $data, ?int $userId): Order
+    {
+        $totals = $this->totals($cart, $data->shippingMethod);
+
+        return DB::transaction(function () use ($cart, $data, $userId, $totals) {
+            return $this->buildOrder($cart, $data, $userId, $totals, Order::STATUS_PENDING);
+        });
+    }
+
+    public function attachCheckoutSession(Order $order, string $sessionId): void
+    {
+        $order->update([
+            'metadata' => array_merge($order->metadata ?? [], ['checkout_session_id' => $sessionId]),
+        ]);
+    }
+
+    /**
+     * Confirm a paid hosted-gateway order: deduct stock, record the payment,
+     * mark the order paid and send the confirmation. Safe to call again
+     * (idempotent) so a webhook and the customer's return to the success URL
+     * can race without double-charging or double-emailing.
+     *
+     * @throws RuntimeException when stock is insufficient
+     */
+    public function finalizeStripeOrder(Order $order, array $paymentResult, ?Cart $cart = null): Order
+    {
+        if ($order->isPaid()) {
+            return $order->fresh();
+        }
+
+        return DB::transaction(function () use ($order, $paymentResult, $cart) {
+            $this->deductStock($order);
+
+            $order->payments()->create([
+                'provider' => 'stripe',
+                'transaction_id' => $paymentResult['transaction_id'] ?? null,
+                'intent_id' => $paymentResult['intent_id'] ?? null,
+                'status' => 'succeeded',
+                'amount' => $order->total,
+                'currency' => $order->currency,
+                'payload' => [
+                    'provider' => 'Stripe Checkout',
+                    'session_status' => $paymentResult['status'] ?? null,
+                ],
+                'paid_at' => now(),
+            ]);
+
+            $order->update([
+                'status' => Order::STATUS_CONFIRMED,
+                'payment_status' => Order::PAYMENT_PAID,
+            ]);
+
+            $this->recordAddressBookEntry($order->fresh());
+            $this->recordCouponUsage($order->fresh(), $order->user_id);
+
+            if ($cart) {
+                $this->clearCart($cart);
+            }
+
+            OrderPlaced::dispatch($order->fresh());
+
+            return $order->fresh();
+        });
+    }
+
+    /**
+     * @return Order the persisted order metadata wrapper
+     */
+    protected function buildOrder(Cart $cart, CheckoutData $data, ?int $userId, array $totals, string $status = Order::STATUS_CONFIRMED): Order
+    {
+        $order = Order::create([
+            'user_id' => $userId,
+            'order_number' => $this->generateOrderNumber(),
+            'status' => $status,
+            'payment_status' => Order::PAYMENT_UNPAID,
+            'subtotal' => $totals['subtotal'],
+            'discount_total' => $totals['discount'],
+            'shipping_total' => $totals['shipping'],
+            'tax_total' => 0,
+            'total' => $totals['total'],
+            'currency' => $totals['currency'],
+            'coupon_id' => $totals['discount_code'] ? $this->promotions->couponFor($totals['discount_code'])?->id : null,
+            'customer_email' => $data->email,
+            'customer_phone' => $data->shipping['phone'] ?? null,
+            'shipping_method' => $data->shippingMethod,
+            'customer_note' => $data->customerNote,
+            'placed_at' => now(),
+            'metadata' => ['checkout_data' => $data->toArrayForLog()],
+        ]);
+
+        foreach ($cart->items as $item) {
+            $variant = $item->variant;
+            $product = $variant->product;
+
+            $order->items()->create([
+                'product_id' => $product->id,
+                'variant_id' => $variant->id,
+                'product_name' => $product->name,
+                'sku' => $variant->sku ?: $product->sku,
+                'size' => $variant->size,
+                'colour' => $variant->colour,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->unit_price,
+                'line_total' => $item->lineTotal(),
+            ]);
+        }
+
+        $order->addresses()->create(['type' => 'shipping'] + $data->shipping);
+        $order->addresses()->create(['type' => 'billing'] + $data->billing);
+
+        return $order;
+    }
+
+    protected function deductStock(Order $order): void
+    {
+        foreach ($order->items as $item) {
+            /** @var ProductVariant $variant */
+            $variant = ProductVariant::query()->whereKey($item->variant_id)->lockForUpdate()->first();
+            if (! $variant || $variant->stock < $item->quantity) {
+                throw new RuntimeException(
+                    "Only {$variant?->stock} of {$item->product_name} ({$item->size}) left. Please update your bag."
+                );
+            }
+            $variant->decrement('stock', $item->quantity);
+        }
     }
 
     /**
@@ -70,48 +200,10 @@ class CheckoutService
                 }
             }
 
-            $order = Order::create([
-                'user_id' => $userId,
-                'order_number' => $this->generateOrderNumber(),
-                'status' => Order::STATUS_CONFIRMED,
-                'payment_status' => Order::PAYMENT_UNPAID,
-                'subtotal' => $totals['subtotal'],
-                'discount_total' => $totals['discount'],
-                'shipping_total' => $totals['shipping'],
-                'tax_total' => 0,
-                'total' => $totals['total'],
-                'currency' => $totals['currency'],
-                'coupon_id' => $totals['discount_code'] ? $this->promotions->couponFor($totals['discount_code'])?->id : null,
-                'customer_email' => $data->email,
-                'customer_phone' => $data->shipping['phone'] ?? null,
-                'shipping_method' => $data->shippingMethod,
-                'customer_note' => $data->customerNote,
-                'placed_at' => now(),
-                'metadata' => ['checkout_data' => $data->toArrayForLog()],
-            ]);
+            $order = $this->buildOrder($cart, $data, $userId, $totals, Order::STATUS_CONFIRMED);
 
-            foreach ($cart->items as $item) {
-                $variant = $item->variant;
-                $product = $variant->product;
-
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'variant_id' => $variant->id,
-                    'product_name' => $product->name,
-                    'sku' => $variant->sku ?: $product->sku,
-                    'size' => $variant->size,
-                    'colour' => $variant->colour,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->unit_price,
-                    'line_total' => $item->lineTotal(),
-                ]);
-
-                $variant->decrement('stock', $item->quantity);
-            }
-
-            $order->addresses()->create(['type' => 'shipping'] + $data->shipping);
-            $order->addresses()->create(['type' => 'billing'] + $data->billing);
-            $this->recordAddressBookEntry($data, $userId);
+            $this->recordAddressBookEntry($order);
+            $this->deductStock($order);
 
             // Payment
             $gateway = $this->payments->gateway($data->paymentMethod);
@@ -142,27 +234,33 @@ class CheckoutService
         });
     }
 
-    protected function recordAddressBookEntry(CheckoutData $data, ?int $userId): void
+    protected function recordAddressBookEntry(Order $order): void
     {
-        if (! $userId) {
+        if (! $order->user_id) {
             return;
         }
 
-        $existing = \App\Models\Address::query()
-            ->where('user_id', $userId)
-            ->where('line_one', $data->shipping['line_one'])
-            ->where('postcode', $data->shipping['postcode'])
+        $shipping = $order->addresses()->where('type', 'shipping')->first();
+
+        if (! $shipping) {
+            return;
+        }
+
+        $existing = Address::query()
+            ->where('user_id', $order->user_id)
+            ->where('line_one', $shipping->line_one)
+            ->where('postcode', $shipping->postcode)
             ->exists();
 
         if ($existing) {
             return;
         }
 
-        \App\Models\Address::create([
-            'user_id' => $userId,
+        Address::create([
+            'user_id' => $order->user_id,
             'type' => 'shipping',
             'is_default' => false,
-        ] + $data->shipping);
+        ] + $shipping->only(['name', 'line_one', 'line_two', 'city', 'county', 'postcode', 'country', 'phone']));
     }
 
     protected function recordCouponUsage(Order $order, ?int $userId): void
@@ -189,7 +287,7 @@ class CheckoutService
     protected function generateOrderNumber(): string
     {
         do {
-            $number = 'HM-' . strtoupper(Str::random(10));
+            $number = 'HM-'.strtoupper(Str::random(10));
         } while (Order::query()->where('order_number', $number)->exists());
 
         return $number;
