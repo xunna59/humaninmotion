@@ -50,6 +50,9 @@ Route::prefix('checkout')->name('checkout.')->group(function () {
     Route::get('/confirmation/{order}', [CheckoutController::class, 'confirmation'])->name('confirmation');
 });
 
+// ── Stripe webhook (async payment / refund lifecycle) ─────────────
+Route::post('/stripe/webhook', [CheckoutController::class, 'webhook'])->name('stripe.webhook');
+
 Route::get('/journal', [JournalController::class, 'index'])->name('journal.index');
 Route::get('/journal/{slug}', [JournalController::class, 'show'])->name('journal.show');
 

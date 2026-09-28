@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\Payment;
 use App\Services\Cart\CartService;
 use App\Services\Checkout\CheckoutData;
 use App\Services\Checkout\CheckoutService;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Response;
 
 class CheckoutController extends Controller
 {
@@ -145,6 +147,99 @@ class CheckoutController extends Controller
         return view('checkout.confirmation', [
             'order' => $order,
             'title' => 'Order confirmed | Human In Motion',
+        ]);
+    }
+
+    /**
+     * Stripe webhook — finalises async payments and records refunds.
+     *
+     * The signature is verified with STRIPE_WEBHOOK_SECRET, so CSRF and the
+     * session are intentionally bypassed. Respond 200 quickly to acknowledge.
+     */
+    public function webhook(Request $request): Response
+    {
+        try {
+            $event = app(PaymentManager::class)->gateway('stripe')->constructEvent(
+                $request->getContent(),
+                (string) $request->header('stripe-signature'),
+            );
+        } catch (\Throwable $e) {
+            return response('Invalid signature', Response::HTTP_BAD_REQUEST);
+        }
+
+        $object = $event->data->object;
+
+        // charge.refunded carries the intent under ->payment_intent
+        $intentId = $event->type === 'charge.refunded'
+            ? ($object->payment_intent ?? null)
+            : ($object->id ?? null);
+
+        if (! $intentId) {
+            return response('ok');
+        }
+
+        $payment = Payment::query()->where('intent_id', $intentId)->first();
+
+        if (! $payment) {
+            return response('ok');
+        }
+
+        $order = $payment->order;
+
+        match ($event->type) {
+            'payment_intent.succeeded' => $this->markSucceeded($payment, $order),
+            'payment_intent.payment_failed' => $this->markFailed($payment, $order),
+            'payment_intent.canceled' => $this->markCancelled($payment, $order),
+            'charge.refunded' => $this->markRefunded($payment, $order, (float) ($object->amount_refunded / 100)),
+            default => null,
+        };
+
+        return response('ok');
+    }
+
+    protected function markSucceeded(Payment $payment, ?Order $order): void
+    {
+        $payment->update([
+            'status' => Payment::STATUS_SUCCEEDED,
+            'transaction_id' => $payment->transaction_id ?: $payment->intent_id,
+            'paid_at' => $payment->paid_at ?? now(),
+        ]);
+
+        $order?->refresh();
+        if ($order && ! $order->isPaid()) {
+            $order->update(['payment_status' => Order::PAYMENT_PAID]);
+        }
+    }
+
+    protected function markFailed(Payment $payment, ?Order $order): void
+    {
+        $payment->update(['status' => Payment::STATUS_FAILED]);
+        $order?->refresh();
+        if ($order && ! $order->isPaid()) {
+            $order->update(['payment_status' => Order::PAYMENT_FAILED]);
+        }
+    }
+
+    protected function markCancelled(Payment $payment, ?Order $order): void
+    {
+        $payment->update(['status' => Payment::STATUS_FAILED]);
+        $order?->refresh();
+        if ($order && ! $order->isPaid()) {
+            $order->update(['payment_status' => Order::PAYMENT_UNPAID]);
+        }
+    }
+
+    protected function markRefunded(Payment $payment, ?Order $order, float $refundedAmount): void
+    {
+        $order?->refresh();
+        $fullyRefunded = $order && $order->total && $refundedAmount >= (float) $order->total;
+
+        $payment->update(['status' => Payment::STATUS_REFUNDED]);
+
+        $order?->update([
+            'payment_status' => $fullyRefunded
+                ? Order::PAYMENT_REFUNDED
+                : Order::PAYMENT_PARTIALLY_REFUNDED,
         ]);
     }
 }

@@ -45,13 +45,13 @@ class CheckoutData
                     'phone' => $input['shipping_phone'] ?? null,
                 ]
                 : [
-                    'name' => $input['billing_name'],
-                    'line_one' => $input['billing_line_one'],
+                    'name' => $input['billing_name'] ?? null,
+                    'line_one' => $input['billing_line_one'] ?? null,
                     'line_two' => $input['billing_line_two'] ?? null,
-                    'city' => $input['billing_city'],
+                    'city' => $input['billing_city'] ?? null,
                     'county' => $input['billing_county'] ?? null,
-                    'postcode' => $input['billing_postcode'],
-                    'country' => $input['billing_country'],
+                    'postcode' => $input['billing_postcode'] ?? null,
+                    'country' => $input['billing_country'] ?? null,
                     'phone' => $input['billing_phone'] ?? null,
                 ],
             shippingMethod: $input['shipping_method'] ?? 'uk_standard',

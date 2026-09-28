@@ -4,8 +4,11 @@ namespace App\Services\Payments;
 
 use App\Contracts\PaymentGateway;
 use RuntimeException;
+use Stripe\Event;
 use Stripe\Exception\ApiErrorException;
+use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
+use Stripe\Webhook;
 
 /**
  * Live payment gateway using Stripe PaymentIntent + Payment Element.
@@ -40,6 +43,27 @@ class StripeGateway implements PaymentGateway
         return config('humaninmotion.payments.gateways.stripe.publishable_key');
     }
 
+    /**
+     * Verify a webhook event using the endpoint secret. Returns the parsed
+     * event on success, throws RuntimeException otherwise.
+     *
+     * @throws RuntimeException
+     */
+    public function constructEvent(string $payload, string $signature): Event
+    {
+        $secret = config('humaninmotion.payments.gateways.stripe.webhook_secret');
+
+        if (! $this->configured || blank($secret)) {
+            throw new RuntimeException('Stripe webhook secret is not configured yet.');
+        }
+
+        try {
+            return Webhook::constructEvent($payload, $signature, $secret);
+        } catch (SignatureVerificationException $e) {
+            throw new RuntimeException('Stripe webhook signature verification failed.');
+        }
+    }
+
     protected function client(): StripeClient
     {
         if (! $this->configured) {
@@ -63,7 +87,7 @@ class StripeGateway implements PaymentGateway
             $intent = $this->client()->paymentIntents->create([
                 'amount' => $this->toMinorUnits($amount, $currency),
                 'currency' => strtolower($currency),
-                'automatic_payment_methods' => ['enabled' => true],
+                'payment_method_types' => ['card'],
                 'description' => 'Human In Motion order',
                 'metadata' => array_merge([
                     'integration' => 'humaninmotion-checkout',
