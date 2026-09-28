@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HomeSectionController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\ReturnController;
@@ -53,6 +54,9 @@ Route::middleware(['auth', 'admin'])
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
         Route::put('/orders/{order}', [OrderController::class, 'update'])->name('orders.update');
+
+        // Payments
+        Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
 
         // Customers
         Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');

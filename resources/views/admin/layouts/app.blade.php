@@ -29,6 +29,7 @@
                         'promotions' => ['admin.promotions.index', 'Promotions'],
                         'coupons' => ['admin.coupons.index', 'Coupons'],
                         'orders' => ['admin.orders.index', 'Orders'],
+                        'payments' => ['admin.payments.index', 'Payments'],
                         'customers' => ['admin.customers.index', 'Customers'],
                         'reviews' => ['admin.reviews.index', 'Reviews'],
                         'returns' => ['admin.returns.index', 'Returns'],
